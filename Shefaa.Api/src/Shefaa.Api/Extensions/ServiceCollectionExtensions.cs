@@ -13,30 +13,41 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddShefaaDatabase(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("ShefaaConnection")
-            ?? throw new InvalidOperationException("Connection string 'ShefaaConnection' not found in configuration.");
+        var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER") ?? "SqlServer";
 
-        services.AddDbContext<ShefaaDbContext>(options =>
+        if (dbProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
         {
-            options.UseSqlServer(connectionString, sqlOptions =>
+            var dbPath = Environment.GetEnvironmentVariable("SQLITE_PATH") ?? "shefaa.db";
+            var connectionString = $"Data Source={dbPath}";
+            services.AddDbContext<ShefaaDbContext>(options =>
             {
-                sqlOptions.MigrationsAssembly(typeof(ShefaaDbContext).Assembly.GetName().Name);
-                sqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: TimeSpan.FromSeconds(10),
-                    errorNumbersToAdd: null);
+                options.UseSqlite(connectionString, sqliteOptions =>
+                {
+                    sqliteOptions.MigrationsAssembly(typeof(ShefaaDbContext).Assembly.GetName().Name);
+                });
+                options.ConfigureWarnings(w => w.Ignore(
+                    Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
             });
+        }
+        else
+        {
+            var connectionString = configuration.GetConnectionString("ShefaaConnection")
+                ?? throw new InvalidOperationException("Connection string 'ShefaaConnection' not found in configuration.");
 
-            // Suppress EF Core 9 warning about "pending model changes" when only query filters differ.
-            options.ConfigureWarnings(w => w.Ignore(
-                Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-
-            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
+            services.AddDbContext<ShefaaDbContext>(options =>
             {
-                options.EnableDetailedErrors();
-                options.EnableSensitiveDataLogging();
-            }
-        });
+                options.UseSqlServer(connectionString, sqlOptions =>
+                {
+                    sqlOptions.MigrationsAssembly(typeof(ShefaaDbContext).Assembly.GetName().Name);
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorNumbersToAdd: null);
+                });
+                options.ConfigureWarnings(w => w.Ignore(
+                    Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+            });
+        }
 
         return services;
     }
@@ -72,7 +83,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddShefaaJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
         var jwtSettings = configuration.GetSection("JwtSettings");
-        var secretKey = jwtSettings["SecretKey"]
+        var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+            ?? jwtSettings["SecretKey"]
             ?? throw new InvalidOperationException("JWT SecretKey not configured.");
 
         services.AddAuthentication(options =>
@@ -144,6 +156,13 @@ public static class ServiceCollectionExtensions
     {
         var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
             ?? new[] { "http://localhost:4200" };
+
+        // Allow environment variable override for production
+        var envOrigins = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS");
+        if (!string.IsNullOrWhiteSpace(envOrigins))
+        {
+            allowedOrigins = envOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(o => o.Trim()).ToArray();
+        }
 
         services.AddCors(options =>
         {

@@ -1,0 +1,11 @@
+build: dotnet publish src/Shefaa.Api -c Release -o out
+start: dotnet out/Shefaa.Api.dll
+envVars:
+  - key: DB_PROVIDER
+    value: Sqlite
+  - key: SQLITE_PATH
+    value: /data/shefaa.db
+  - key: JWT_SECRET_KEY
+    sync: false
+  - key: CORS_ALLOWED_ORIGINS
+    sync: false

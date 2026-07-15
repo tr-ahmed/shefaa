@@ -62,7 +62,15 @@ public static class ApplicationServiceExtensions
             var roleManager = services.GetRequiredService<RoleManager<ApplicationRole>>();
 
             // Ensure database exists (for first-run convenience). Migrations are still the recommended path.
-            await db.Database.MigrateAsync();
+            var dbProvider = Environment.GetEnvironmentVariable("DB_PROVIDER") ?? "SqlServer";
+            if (dbProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                await db.Database.EnsureCreatedAsync();
+            }
+            else
+            {
+                await db.Database.MigrateAsync();
+            }
 
             // Roles are seeded via EF Core configuration; ensure they exist (idempotent).
             string[] roles = { "Patient", "Doctor", "ClinicStaff", "ClinicAdmin", "SystemAdmin" };
