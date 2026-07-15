@@ -32,3 +32,5 @@ jobs:
           server-computer-name: ${{ secrets.MONSTERASP_SERVER_URL }}
           server-username: ${{ secrets.MONSTERASP_USERNAME }}
           server-password: ${{ secrets.MONSTERASP_PASSWORD }}
+          source-folder: ./publish
+          destination-folder: wwwroot
