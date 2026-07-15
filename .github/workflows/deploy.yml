@@ -23,7 +23,7 @@ jobs:
         run: dotnet build Shefaa.Api/Shefaa.slnx --configuration Release --no-restore
 
       - name: Publish
-        run: dotnet publish Shefaa.Api/src/Shefaa.Api/Shefaa.Api.csproj --configuration Release --output ./publish --runtime win-x86
+        run: dotnet publish Shefaa.Api/src/Shefaa.Api/Shefaa.Api.csproj --configuration Release --output ./publish
 
       - name: Deploy to MonsterASP.NET via WebDeploy
         uses: rasmusbuchholdt/simply-web-deploy@2.1.0

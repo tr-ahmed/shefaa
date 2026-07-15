@@ -110,8 +110,7 @@ public static class ApplicationServiceExtensions
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during database seeding.");
-            throw;
+            logger.LogError(ex, "Error during database seeding. App will continue without seeding.");
         }
     }
 }
