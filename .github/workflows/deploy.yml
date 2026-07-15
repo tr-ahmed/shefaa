@@ -1,0 +1,34 @@
+name: Deploy to MonsterASP
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore Shefaa.Api/Shefaa.slnx
+
+      - name: Build
+        run: dotnet build Shefaa.Api/Shefaa.slnx --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish Shefaa.Api/src/Shefaa.Api/Shefaa.Api.csproj --configuration Release --output ./publish --runtime win-x86
+
+      - name: Deploy to MonsterASP.NET via WebDeploy
+        uses: rasmusbuchholdt/simply-web-deploy@v2.1.0
+        with:
+          website-name: ${{ secrets.MONSTERASP_WEBSITE_NAME }}
+          server-computer-name: ${{ secrets.MONSTERASP_SERVER_URL }}
+          server-username: ${{ secrets.MONSTERASP_USERNAME }}
+          server-password: ${{ secrets.MONSTERASP_PASSWORD }}

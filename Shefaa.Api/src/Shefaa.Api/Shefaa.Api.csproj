@@ -23,4 +23,8 @@
     <ProjectReference Include="..\Shefaa.Domain\Shefaa.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="web.config" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
