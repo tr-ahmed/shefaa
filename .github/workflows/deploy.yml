@@ -26,7 +26,7 @@ jobs:
         run: dotnet publish Shefaa.Api/src/Shefaa.Api/Shefaa.Api.csproj --configuration Release --output ./publish --runtime win-x86
 
       - name: Deploy to MonsterASP.NET via WebDeploy
-        uses: rasmusbuchholdt/simply-web-deploy@v2.1.0
+        uses: rasmusbuchholdt/simply-web-deploy@2.1.0
         with:
           website-name: ${{ secrets.MONSTERASP_WEBSITE_NAME }}
           server-computer-name: ${{ secrets.MONSTERASP_SERVER_URL }}
