@@ -1,0 +1,185 @@
+ <!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ERD Shefaa - النسخة الأساسية</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.8;
+      margin: 0;
+      padding: 24px;
+      background: linear-gradient(180deg, #f8fbff 0%, #f3f7fb 100%);
+      color: #1f2937;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      padding: 28px;
+      border-radius: 16px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+    }
+    h1, h2, h3 {
+      color: #0f766e;
+    }
+    h1 { font-size: 30px; font-weight: 800; }
+    h2 { font-size: 22px; }
+    pre {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: #e2e8f0;
+      padding: 18px;
+      border-radius: 10px;
+      overflow-x: auto;
+      direction: ltr;
+      text-align: left;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .card {
+      background: linear-gradient(180deg, #fcfeff 0%, #f8fafc 100%);
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 16px 0;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+    }
+    .hero-image {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .hero-image img {
+      max-width: 100%;
+      border-radius: 18px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+    }
+    .entity {
+      font-weight: bold;
+      color: #2563eb;
+    }
+    ul { padding-right: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero-image">
+      <img src="Healthcare Appointment-2026-07-07-075051.png" alt="ERD illustration" />
+    </div>
+    <h1>ERD نظام Shefaa - النسخة الأساسية</h1>
+    <p>هذا الملف يشرح النسخة المختصرة من نموذج البيانات الخاصة بنظام Shefaa بشكل واضح ومناسب للعرض أو التقرير.</p>
+
+    <h2>1. شرح الكيانات الأساسية</h2>
+
+    <div class="card">
+      <h3>USER</h3>
+      <p>تمثل المستخدم الأساسي في النظام، سواء كان مريضًا أو طبيبًا أو مسؤولًا.</p>
+      <ul>
+        <li><span class="entity">id</span>: مفتاح أساسي</li>
+        <li><span class="entity">email</span>: البريد الإلكتروني</li>
+        <li><span class="entity">firstName</span>: الاسم الأول</li>
+        <li><span class="entity">lastName</span>: الاسم الأخير</li>
+        <li><span class="entity">phoneNumber</span>: رقم الهاتف</li>
+        <li><span class="entity">role</span>: الدور داخل النظام</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>PATIENT</h3>
+      <p>يمثل البيانات الخاصة بالمريض داخل النظام.</p>
+      <ul>
+        <li><span class="entity">id</span>: مفتاح أساسي</li>
+        <li><span class="entity">userId</span>: رابط إلى المستخدم</li>
+        <li><span class="entity">medicalRecordNumber</span>: رقم السجل الطبي</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>DOCTOR</h3>
+      <p>يمثل البيانات الخاصة بالطبيب.</p>
+      <ul>
+        <li><span class="entity">id</span>: مفتاح أساسي</li>
+        <li><span class="entity">userId</span>: رابط إلى المستخدم</li>
+        <li><span class="entity">specialtyId</span>: التخصص الرئيسي للطبيب</li>
+        <li><span class="entity">licenseNumber</span>: رقم الرخصة الطبية</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>SPECIALTY</h3>
+      <p>يمثل التخصصات الطبية مثل القلب أو الجلدية أو الأطفال.</p>
+      <ul>
+        <li><span class="entity">id</span>: مفتاح أساسي</li>
+        <li><span class="entity">name</span>: اسم التخصص</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>CLINIC</h3>
+      <p>يمثل العيادة أو المركز الطبي.</p>
+      <ul>
+        <li><span class="entity">id</span>: مفتاح أساسي</li>
+        <li><span class="entity">name</span>: اسم العيادة</li>
+        <li><span class="entity">address</span>: العنوان</li>
+        <li><span class="entity">city</span>: المدينة</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>CLINIC_DOCTOR</h3>
+      <p>جدول وسيط يربط الطبيب بالعيادة التي يعمل بها.</p>
+      <ul>
+        <li><span class="entity">clinicId</span>: رقم العيادة</li>
+        <li><span class="entity">doctorId</span>: رقم الطبيب</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>APPOINTMENT</h3>
+      <p>يمثل الحجز الطبي بين المريض والطبيب في عيادة معينة.</p>
+      <ul>
+        <li><span class="entity">patientId</span>: المريض</li>
+        <li><span class="entity">doctorId</span>: الطبيب</li>
+        <li><span class="entity">clinicId</span>: العيادة</li>
+        <li><span class="entity">scheduledStart</span>: وقت بداية الحجز</li>
+        <li><span class="entity">scheduledEnd</span>: وقت نهاية الحجز</li>
+        <li><span class="entity">status</span>: حالة الحجز مثل Pending أو Confirmed</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>MEDICAL_RECORD</h3>
+      <p>يمثل السجل الطبي للمريض بعد أو أثناء الزيارة.</p>
+      <ul>
+        <li><span class="entity">appointmentId</span>: الحجز المرتبط</li>
+        <li><span class="entity">patientId</span>: المريض</li>
+        <li><span class="entity">doctorId</span>: الطبيب</li>
+        <li><span class="entity">diagnosis</span>: التشخيص</li>
+      </ul>
+    </div>
+
+    <h2>3. شرح العلاقات</h2>
+    <ul>
+      <li><strong>USER → PATIENT</strong>: كل مستخدم قد يكون مريضًا واحدًا.</li>
+      <li><strong>USER → DOCTOR</strong>: كل مستخدم قد يكون طبيبًا واحدًا.</li>
+      <li><strong>SPECIALTY → DOCTOR</strong>: كل تخصص يمكن أن يختص به عدة أطباء.</li>
+      <li><strong>DOCTOR ↔ CLINIC</strong>: الطبيب يمكن أن يعمل في عدة عيادات، والعيادة يمكن أن تضم عدة أطباء.</li>
+      <li><strong>PATIENT → APPOINTMENT</strong>: المريض يمكن أن يحجز عدة مواعيد.</li>
+      <li><strong>DOCTOR → APPOINTMENT</strong>: الطبيب يمكنه handling عدة حجوزات.</li>
+      <li><strong>CLINIC → APPOINTMENT</strong>: كل حجز يحدث داخل عيادة معينة.</li>
+      <li><strong>APPOINTMENT → MEDICAL_RECORD</strong>: كل حجز قد ينتج عنه سجل طبي واحد.</li>
+    </ul>
+
+    <h2>4. لماذا هذا النموذج مناسب؟</h2>
+    <ul>
+      <li>يغطي العمليات الأساسية للنظام.</li>
+      <li>سهل الفهم والشرح.</li>
+      <li>مناسب للـ ERD في التقرير أو العرض.</li>
+      <li>يعكس الهيكل الأساسي لمشروع Shefaa بدون تعقيد غير ضروري.</li>
+    </ul>
+  </div>
+</body>
+</html>

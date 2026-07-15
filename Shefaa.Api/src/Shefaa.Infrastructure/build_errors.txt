@@ -1,0 +1,31 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Shefaa.Domain -> C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Domain\bin\Debug\net9.0\Shefaa.Domain.dll
+  Shefaa.Application -> C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Application\bin\Debug\net9.0\Shefaa.Application.dll
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AuthService.cs(78,13): error CS0029: Cannot implicitly convert type 'Shefaa.Domain.Enums.UserType' to 'string' [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AuthService.cs(79,13): error CS0029: Cannot implicitly convert type 'Shefaa.Domain.Enums.UserType' to 'string' [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AuthService.cs(80,13): error CS0029: Cannot implicitly convert type 'Shefaa.Domain.Enums.UserType' to 'string' [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AuthService.cs(81,13): error CS0029: Cannot implicitly convert type 'Shefaa.Domain.Enums.UserType' to 'string' [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AuthService.cs(82,13): error CS0029: Cannot implicitly convert type 'Shefaa.Domain.Enums.UserType' to 'string' [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\DoctorService.cs(50,26): warning CS8602: Dereference of a possibly null reference. [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\ReviewService.cs(91,69): warning CS8602: Dereference of a possibly null reference. [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AppointmentService.cs(70,36): warning CS8601: Possible null reference assignment. [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AppointmentService.cs(105,36): warning CS8601: Possible null reference assignment. [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\ClinicService.cs(269,54): warning CS8602: Dereference of a possibly null reference. [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+
+Build FAILED.
+
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\DoctorService.cs(50,26): warning CS8602: Dereference of a possibly null reference. [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\ReviewService.cs(91,69): warning CS8602: Dereference of a possibly null reference. [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AppointmentService.cs(70,36): warning CS8601: Possible null reference assignment. [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AppointmentService.cs(105,36): warning CS8601: Possible null reference assignment. [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\ClinicService.cs(269,54): warning CS8602: Dereference of a possibly null reference. [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AuthService.cs(78,13): error CS0029: Cannot implicitly convert type 'Shefaa.Domain.Enums.UserType' to 'string' [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AuthService.cs(79,13): error CS0029: Cannot implicitly convert type 'Shefaa.Domain.Enums.UserType' to 'string' [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AuthService.cs(80,13): error CS0029: Cannot implicitly convert type 'Shefaa.Domain.Enums.UserType' to 'string' [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AuthService.cs(81,13): error CS0029: Cannot implicitly convert type 'Shefaa.Domain.Enums.UserType' to 'string' [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Services\AuthService.cs(82,13): error CS0029: Cannot implicitly convert type 'Shefaa.Domain.Enums.UserType' to 'string' [C:\Users\Gahar\OneDrive\Desktop\shefaa\Shefaa.Api\src\Shefaa.Infrastructure\Shefaa.Infrastructure.csproj]
+    5 Warning(s)
+    5 Error(s)
+
+Time Elapsed 00:00:01.27

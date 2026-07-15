@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Shefaa.Api/Shefaa.Api.csproj" />
+    <Project Path="src/Shefaa.Application/Shefaa.Application.csproj" />
+    <Project Path="src/Shefaa.Domain/Shefaa.Domain.csproj" />
+    <Project Path="src/Shefaa.Infrastructure/Shefaa.Infrastructure.csproj" />
+  </Folder>
+</Solution>
