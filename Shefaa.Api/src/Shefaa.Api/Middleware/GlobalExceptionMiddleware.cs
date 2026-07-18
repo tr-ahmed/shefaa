@@ -49,8 +49,8 @@ public class GlobalExceptionMiddleware
 
         var response = ApiResponse.Fail(
             status == HttpStatusCode.InternalServerError ? "An unexpected error occurred." : ex.Message,
-            _env.IsDevelopment() && status == HttpStatusCode.InternalServerError
-                ? new[] { ex.GetType().Name, ex.Message, ex.StackTrace ?? string.Empty }
+            status == HttpStatusCode.InternalServerError
+                ? Array.Empty<string>()
                 : Array.Empty<string>()
         );
 
