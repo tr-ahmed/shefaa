@@ -1,5 +1,4 @@
 [build]
-  base = "shefaa-client"
   command = "npm install && ng build"
   publish = "dist/shefaa-client/browser"
 

@@ -25,8 +25,6 @@ public static class ServiceCollectionExtensions
                 {
                     sqliteOptions.MigrationsAssembly(typeof(ShefaaDbContext).Assembly.GetName().Name);
                 });
-                options.ConfigureWarnings(w => w.Ignore(
-                    Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
             });
         }
         else
@@ -39,13 +37,11 @@ public static class ServiceCollectionExtensions
                 options.UseSqlServer(connectionString, sqlOptions =>
                 {
                     sqlOptions.MigrationsAssembly(typeof(ShefaaDbContext).Assembly.GetName().Name);
-                    sqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: 5,
-                        maxRetryDelay: TimeSpan.FromSeconds(10),
-                        errorNumbersToAdd: null);
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(10),
+                    errorNumbersToAdd: null);
                 });
-                options.ConfigureWarnings(w => w.Ignore(
-                    Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
             });
         }
 

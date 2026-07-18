@@ -25,7 +25,10 @@ Thumbs.db
 *.mdf
 *.ldf
 appsettings.Local.json
+appsettings.Production.json
 *.pfx
+*.db
+PublishProfiles/
 
 # Node / Angular
 node_modules/
