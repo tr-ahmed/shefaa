@@ -29,12 +29,12 @@ public class ClinicsController : ControllerBase
 
     [HttpGet("my")]
     [Authorize(Roles = "ClinicAdmin")]
-    public async Task<IActionResult> GetMyClinic(CancellationToken ct)
+    public async Task<IActionResult> GetMyClinics(CancellationToken ct)
     {
         var userId = User.GetUserId();
         if (userId == null) return Unauthorized();
-        var dto = await _svc.GetByOwnerUserIdAsync(userId, ct);
-        return dto == null ? NotFound() : Ok(dto);
+        var list = await _svc.GetMyClinicsAsync(userId, ct);
+        return Ok(list);
     }
 
     [HttpGet("{id:int}")]
@@ -58,7 +58,9 @@ public class ClinicsController : ControllerBase
     [Authorize(Roles = "SystemAdmin,ClinicAdmin")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateClinicRequest request, CancellationToken ct)
     {
-        var result = await _svc.UpdateAsync(id, request, ct);
+        var userId = User.GetUserId() ?? string.Empty;
+        var role = User.GetRoles().FirstOrDefault() ?? string.Empty;
+        var result = await _svc.UpdateAsync(id, request, userId, role, ct);
         return result.Success ? Ok(result) : BadRequest(result);
     }
 
@@ -66,7 +68,9 @@ public class ClinicsController : ControllerBase
     [Authorize(Roles = "SystemAdmin,ClinicAdmin")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        var result = await _svc.DeleteAsync(id, ct);
+        var userId = User.GetUserId() ?? string.Empty;
+        var role = User.GetRoles().FirstOrDefault() ?? string.Empty;
+        var result = await _svc.DeleteAsync(id, userId, role, ct);
         return result.Success ? Ok(result) : NotFound(result);
     }
 
@@ -90,7 +94,9 @@ public class ClinicsController : ControllerBase
     [Authorize(Roles = "SystemAdmin,ClinicAdmin,ClinicStaff")]
     public async Task<IActionResult> AddDoctor(int id, [FromBody] AddDoctorToClinicRequest request, CancellationToken ct)
     {
-        var result = await _svc.AddDoctorAsync(id, request, ct);
+        var userId = User.GetUserId() ?? string.Empty;
+        var role = User.GetRoles().FirstOrDefault() ?? string.Empty;
+        var result = await _svc.AddDoctorAsync(id, request, userId, role, ct);
         return result.Success ? Ok(result) : BadRequest(result);
     }
 
@@ -98,7 +104,9 @@ public class ClinicsController : ControllerBase
     [Authorize(Roles = "SystemAdmin,ClinicAdmin,ClinicStaff")]
     public async Task<IActionResult> RemoveDoctor(int id, int doctorId, CancellationToken ct)
     {
-        var result = await _svc.RemoveDoctorAsync(id, doctorId, ct);
+        var userId = User.GetUserId() ?? string.Empty;
+        var role = User.GetRoles().FirstOrDefault() ?? string.Empty;
+        var result = await _svc.RemoveDoctorAsync(id, doctorId, userId, role, ct);
         return result.Success ? Ok(result) : NotFound(result);
     }
 

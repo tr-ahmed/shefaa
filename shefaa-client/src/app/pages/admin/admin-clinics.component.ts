@@ -19,7 +19,7 @@ import { ClinicDto, SpecialtyDto } from '../../core/models';
         <h1 class="page-title">{{ 'NAV.CLINICS' | translate }}</h1>
         <p class="page-subtitle">{{ 'COMMON.MANAGE' | translate }} {{ 'NAV.CLINICS' | translate }}</p>
       </div>
-      <button *ngIf="!isClinicAdmin" (click)="openCreate()" class="btn-primary">
+      <button (click)="openCreate()" class="btn-primary">
         <mat-icon>add</mat-icon> {{ 'COMMON.CREATE' | translate }}
       </button>
     </div>
@@ -195,7 +195,6 @@ export class AdminClinicsComponent implements OnInit {
   editingItem = signal<ClinicDto | null>(null);
   saving = signal(false);
   isAr = signal(false);
-  isClinicAdmin = false;
 
   form = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(2)]],
@@ -211,7 +210,6 @@ export class AdminClinicsComponent implements OnInit {
   }, { updateOn: 'change' });
 
   ngOnInit() {
-    this.isClinicAdmin = this.auth.hasRole('ClinicAdmin');
     this.isAr.set(this.translate.currentLang === 'ar');
     this.updateValidators(this.isAr());
     this.translate.onLangChange.subscribe(event => {
@@ -239,9 +237,9 @@ export class AdminClinicsComponent implements OnInit {
   load() {
     this.loading.set(true);
     if (this.auth.hasRole('ClinicAdmin')) {
-      this.data.getMyClinic().subscribe({
-        next: clinic => {
-          this.items.set(clinic ? [clinic] : []);
+      this.data.getMyClinics().subscribe({
+        next: clinics => {
+          this.items.set(clinics || []);
           this.loading.set(false);
         },
         error: () => this.loading.set(false)

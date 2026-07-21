@@ -31,8 +31,8 @@ export class DataService {
     return this.http.get<PagedResult<ClinicDto>>(`${this.base}/clinics`, { params: p });
   }
 
-  getMyClinic(): Observable<ClinicDto> {
-    return this.http.get<ClinicDto>(`${this.base}/clinics/my`);
+  getMyClinics(): Observable<ClinicDto[]> {
+    return this.http.get<ClinicDto[]>(`${this.base}/clinics/my`);
   }
 
   getClinicStaff(clinicId: number): Observable<ClinicStaffDto[]> {

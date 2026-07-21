@@ -24,13 +24,13 @@ public interface IClinicService
 {
     Task<PagedResult<ClinicDto>> GetPagedAsync(int page, int pageSize, string? search, bool activeOnly, string? city, CancellationToken ct = default);
     Task<ClinicDto?> GetByIdAsync(int id, CancellationToken ct = default);
-    Task<ClinicDto?> GetByOwnerUserIdAsync(string userId, CancellationToken ct = default);
+    Task<IReadOnlyList<ClinicDto>> GetMyClinicsAsync(string userId, CancellationToken ct = default);
     Task<ApiResponse<ClinicDto>> CreateAsync(CreateClinicRequest request, string currentUserId, CancellationToken ct = default);
-    Task<ApiResponse<ClinicDto>> UpdateAsync(int id, UpdateClinicRequest request, CancellationToken ct = default);
-    Task<ApiResponse> DeleteAsync(int id, CancellationToken ct = default);
+    Task<ApiResponse<ClinicDto>> UpdateAsync(int id, UpdateClinicRequest request, string currentUserId, string currentUserRole, CancellationToken ct = default);
+    Task<ApiResponse> DeleteAsync(int id, string currentUserId, string currentUserRole, CancellationToken ct = default);
     Task<IReadOnlyList<ClinicDoctorDto>> GetClinicDoctorsAsync(int clinicId, CancellationToken ct = default);
-    Task<ApiResponse<ClinicDoctorDto>> AddDoctorAsync(int clinicId, AddDoctorToClinicRequest request, CancellationToken ct = default);
-    Task<ApiResponse> RemoveDoctorAsync(int clinicId, int doctorId, CancellationToken ct = default);
+    Task<ApiResponse<ClinicDoctorDto>> AddDoctorAsync(int clinicId, AddDoctorToClinicRequest request, string currentUserId, string currentUserRole, CancellationToken ct = default);
+    Task<ApiResponse> RemoveDoctorAsync(int clinicId, int doctorId, string currentUserId, string currentUserRole, CancellationToken ct = default);
     Task<IReadOnlyList<ClinicStaffDto>> GetClinicStaffAsync(int clinicId, CancellationToken ct = default);
     Task<ApiResponse<ClinicStaffDto>> AddStaffAsync(int clinicId, CreateClinicStaffRequest request, string currentUserId, CancellationToken ct = default);
     Task<ApiResponse> RemoveStaffAsync(int clinicId, int staffId, CancellationToken ct = default);

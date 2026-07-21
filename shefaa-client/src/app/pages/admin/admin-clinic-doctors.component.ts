@@ -160,11 +160,11 @@ export class AdminClinicDoctorsComponent implements OnInit {
 
   ngOnInit() {
     if (this.auth.hasRole('ClinicAdmin')) {
-      this.data.getMyClinic().subscribe({
-        next: clinic => {
-          if (clinic) {
-            this.clinics.set([clinic]);
-            this.onClinicChange(clinic.id);
+      this.data.getMyClinics().subscribe({
+        next: clinics => {
+          this.clinics.set(clinics || []);
+          if (clinics && clinics.length > 0) {
+            this.onClinicChange(clinics[0].id);
           }
         }
       });
