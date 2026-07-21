@@ -26,6 +26,8 @@ public class CreateSpecialtyRequest
 
     [MaxLength(500)]
     public string? IconUrl { get; set; }
+
+    public bool IsActive { get; set; } = true;
 }
 
 public class UpdateSpecialtyRequest

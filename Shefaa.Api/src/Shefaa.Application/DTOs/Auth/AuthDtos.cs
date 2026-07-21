@@ -74,6 +74,7 @@ public class UserDto
     public Gender Gender { get; set; }
     public UserType UserType { get; set; }
     public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
     public IReadOnlyList<string> Roles { get; set; } = Array.Empty<string>();
     public IReadOnlyList<string> Permissions { get; set; } = Array.Empty<string>();
 }

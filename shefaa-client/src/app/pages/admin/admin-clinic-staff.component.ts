@@ -35,7 +35,7 @@ import { ClinicDto, ClinicStaffDto, CreateClinicStaffRequest, StaffRole } from '
             </div>
             <label class="label">{{ 'ADMIN.CLINIC_STAFF.CLINIC_LABEL' | translate }}</label>
             <select class="input" [ngModel]="clinicId()" (ngModelChange)="onClinicChange($event)" name="clinicId">
-              <option [ngValue]="null">{{ '-- Select --' }}</option>
+              <option [ngValue]="null">{{ 'ADMIN.SELECT_OPTION' | translate }}</option>
               <option *ngFor="let c of clinics()" [ngValue]="c.id">{{ c.name }}{{ c.city ? ' - ' + c.city : '' }}</option>
             </select>
           </div>

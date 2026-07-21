@@ -25,6 +25,7 @@ public static class UserMappingExtensions
             Gender = user.Gender,
             UserType = user.UserType,
             IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt,
             Roles = roles.ToArray(),
             Permissions = permissions
         };

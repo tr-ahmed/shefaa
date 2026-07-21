@@ -81,7 +81,7 @@ public class SpecialtyService : ISpecialtyService
             NameAr = request.NameAr?.Trim(),
             Description = request.Description,
             IconUrl = request.IconUrl,
-            IsActive = true
+            IsActive = request.IsActive
         };
         _db.Specialties.Add(entity);
         await _db.SaveChangesAsync(ct);

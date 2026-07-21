@@ -52,15 +52,17 @@ public class ReportingService : IReportingService
         var week = await appts.CountAsync(a => a.ScheduledStart >= startOfWeek, ct);
         var month = await appts.CountAsync(a => a.ScheduledStart >= startOfMonth, ct);
 
-        var monthRevenue = await appts
+        var monthRevenue = (await appts
             .Where(a => a.ScheduledStart >= startOfMonth
                 && (a.Status == AppointmentStatus.Completed || a.Status == AppointmentStatus.Confirmed))
-            .SumAsync(a => a.ConsultationFee ?? 0m, ct);
+            .Select(a => a.ConsultationFee ?? 0m)
+            .ToListAsync(ct)).Sum();
 
-        var lastMonthRevenue = await appts
+        var lastMonthRevenue = (await appts
             .Where(a => a.ScheduledStart >= startOfLastMonth && a.ScheduledStart < endOfLastMonth
                 && (a.Status == AppointmentStatus.Completed || a.Status == AppointmentStatus.Confirmed))
-            .SumAsync(a => a.ConsultationFee ?? 0m, ct);
+            .Select(a => a.ConsultationFee ?? 0m)
+            .ToListAsync(ct)).Sum();
 
         var revenueGrowth = lastMonthRevenue > 0
             ? (double)((monthRevenue - lastMonthRevenue) / lastMonthRevenue * 100)
@@ -79,9 +81,10 @@ public class ReportingService : IReportingService
         var noShowRate = totalAppointments > 0 ? (double)noShow / totalAppointments * 100 : 0;
         var cancellationRate = totalAppointments > 0 ? (double)cancelled / totalAppointments * 100 : 0;
 
-        var avgFee = await appts
-            .Where(a => a.ConsultationFee.HasValue && a.ConsultationFee > 0)
-            .AverageAsync(a => a.ConsultationFee, ct);
+        var feeQuery = appts.Where(a => a.ConsultationFee.HasValue && a.ConsultationFee > 0);
+        var avgFee = await feeQuery.AnyAsync(ct)
+            ? await feeQuery.AverageAsync(a => a.ConsultationFee, ct)
+            : 0m;
 
         var newPatientsThisMonth = clinicId.HasValue
             ? await appts.Where(a => a.ScheduledStart >= startOfMonth).Select(a => a.PatientId).Distinct().CountAsync(ct)
@@ -301,22 +304,34 @@ public class ReportingService : IReportingService
     // ─── Specialty Stats ───
     public async Task<List<SpecialtyStatsDto>> GetSpecialtyStatsAsync(CancellationToken ct = default)
     {
-        return await _db.Doctors.AsNoTracking()
+        var doctors = await _db.Doctors.AsNoTracking()
+            .Include(d => d.Specialty)
             .Where(d => d.IsActive)
-            .GroupBy(d => new { d.SpecialtyId, d.Specialty!.Name })
+            .Select(d => new { d.Id, d.SpecialtyId, SpecialtyName = d.Specialty != null ? d.Specialty.Name : "" })
+            .ToListAsync(ct);
+
+        var doctorIds = doctors.Select(d => d.Id).ToList();
+        var apptData = await _db.Appointments
+            .Where(a => doctorIds.Contains(a.DoctorId))
+            .Select(a => new { a.DoctorId, Fee = a.ConsultationFee ?? 0m })
+            .ToListAsync(ct);
+        var apptGroups = apptData
+            .GroupBy(a => a.DoctorId)
+            .Select(g => new { DoctorId = g.Key, Count = g.Count(), Revenue = g.Sum(a => a.Fee) })
+            .ToList();
+
+        return doctors
+            .GroupBy(d => new { d.SpecialtyId, d.SpecialtyName })
             .Select(g => new SpecialtyStatsDto
             {
                 SpecialtyId = g.Key.SpecialtyId,
-                SpecialtyName = g.Key.Name,
+                SpecialtyName = g.Key.SpecialtyName,
                 DoctorCount = g.Count(),
-                AppointmentCount = _db.Appointments.Count(a => a.DoctorId == g.Select(d => d.Id).FirstOrDefault()),
-                Revenue = _db.Appointments
-                    .Where(a => a.DoctorId == g.Select(d => d.Id).FirstOrDefault()
-                        && (a.Status == AppointmentStatus.Completed || a.Status == AppointmentStatus.Confirmed))
-                    .Sum(a => a.ConsultationFee ?? 0m)
+                AppointmentCount = apptGroups.Where(a => g.Any(d => d.Id == a.DoctorId)).Sum(a => a.Count),
+                Revenue = apptGroups.Where(a => g.Any(d => d.Id == a.DoctorId)).Sum(a => a.Revenue)
             })
             .OrderByDescending(s => s.AppointmentCount)
-            .ToListAsync(ct);
+            .ToList();
     }
 
     // ─── Patient Registration Trends ───
@@ -424,9 +439,11 @@ public class ReportingService : IReportingService
             var total = await docAppts.CountAsync(ct);
             var completed = await docAppts.CountAsync(a => a.Status == AppointmentStatus.Completed, ct);
             var cancelled = await docAppts.CountAsync(a => a.Status == AppointmentStatus.Cancelled, ct);
-            var revenue = await docAppts
+            var fees = await docAppts
                 .Where(a => a.Status == AppointmentStatus.Completed || a.Status == AppointmentStatus.Confirmed)
-                .SumAsync(a => a.ConsultationFee ?? 0m, ct);
+                .Select(a => a.ConsultationFee ?? 0m)
+                .ToListAsync(ct);
+            var revenue = fees.Sum();
 
             var doc = await _db.Doctors
                 .Include(d => d.User).Include(d => d.Specialty)

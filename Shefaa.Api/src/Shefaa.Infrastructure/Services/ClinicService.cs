@@ -105,10 +105,11 @@ public class ClinicService : IClinicService
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<IReadOnlyList<ClinicDto>> GetMyClinicsAsync(string userId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ClinicDto>> GetByOwnerUserIdAsync(string userId, CancellationToken ct = default)
     {
         return await _db.Clinics.AsNoTracking()
             .Where(c => c.OwnerUserId == userId && !c.IsDeleted)
+            .OrderBy(c => c.Name)
             .Select(c => new ClinicDto
             {
                 Id = c.Id,
@@ -162,8 +163,11 @@ public class ClinicService : IClinicService
         return ApiResponse<ClinicDto>.Ok(dto!, "Clinic created.");
     }
 
-    public async Task<IReadOnlyList<ClinicStaffDto>> GetClinicStaffAsync(int clinicId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ClinicStaffDto>> GetClinicStaffAsync(int clinicId, string currentUserId, CancellationToken ct = default)
     {
+        if (!await IsOwnerOrAdminAsync(clinicId, currentUserId, ct))
+            return Array.Empty<ClinicStaffDto>();
+
         return await _db.ClinicStaff.AsNoTracking()
             .Where(s => s.ClinicId == clinicId && !s.IsDeleted)
             .Select(s => new ClinicStaffDto
@@ -187,6 +191,9 @@ public class ClinicService : IClinicService
     {
         var clinic = await _db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId && !c.IsDeleted, ct);
         if (clinic == null) return ApiResponse<ClinicStaffDto>.Fail("Clinic not found.", "CLINIC_NOT_FOUND");
+
+        if (!await IsOwnerOrAdminAsync(clinicId, currentUserId, ct))
+            return ApiResponse<ClinicStaffDto>.Fail("Access denied.", "FORBIDDEN");
 
         if (!await _roleManager.RoleExistsAsync("ClinicStaff"))
             return ApiResponse<ClinicStaffDto>.Fail("ClinicStaff role is not configured.", "ROLE_NOT_FOUND");
@@ -247,8 +254,11 @@ public class ClinicService : IClinicService
         return ApiResponse<ClinicStaffDto>.Ok(dto, "Clinic staff created.");
     }
 
-    public async Task<ApiResponse> RemoveStaffAsync(int clinicId, int staffId, CancellationToken ct = default)
+    public async Task<ApiResponse> RemoveStaffAsync(int clinicId, int staffId, string currentUserId, CancellationToken ct = default)
     {
+        if (!await IsOwnerOrAdminAsync(clinicId, currentUserId, ct))
+            return ApiResponse.Fail("Access denied.", "FORBIDDEN");
+
         var entity = await _db.ClinicStaff.FirstOrDefaultAsync(x => x.Id == staffId && x.ClinicId == clinicId, ct);
         if (entity == null) return ApiResponse.Fail("Clinic staff not found.", "NOT_FOUND");
         entity.IsDeleted = true;
@@ -257,12 +267,25 @@ public class ClinicService : IClinicService
         return ApiResponse.Ok("Clinic staff removed.");
     }
 
-    public async Task<ApiResponse<ClinicDto>> UpdateAsync(int id, UpdateClinicRequest request, string currentUserId, string currentUserRole, CancellationToken ct = default)
+    private async Task<bool> IsOwnerOrAdminAsync(int clinicId, string userId, CancellationToken ct = default)
+    {
+        var clinic = await _db.Clinics.AsNoTracking()
+            .Select(c => new { c.Id, c.OwnerUserId })
+            .FirstOrDefaultAsync(c => c.Id == clinicId, ct);
+        if (clinic == null) return false;
+        if (clinic.OwnerUserId == userId) return true;
+        var user = await _db.Users.FindAsync(new object?[] { userId }, ct);
+        if (user == null) return false;
+        return await _userManager.IsInRoleAsync(user, "SystemAdmin");
+    }
+
+    public async Task<ApiResponse<ClinicDto>> UpdateAsync(int id, UpdateClinicRequest request, string currentUserId, CancellationToken ct = default)
     {
         var entity = await _db.Clinics.FirstOrDefaultAsync(c => c.Id == id, ct);
         if (entity == null) return ApiResponse<ClinicDto>.Fail("Clinic not found.", "NOT_FOUND");
-        if (currentUserRole == "ClinicAdmin" && entity.OwnerUserId != currentUserId)
-            return ApiResponse<ClinicDto>.Fail("Access denied. You can only manage your own clinics.", "ACCESS_DENIED");
+
+        if (!await IsOwnerOrAdminAsync(id, currentUserId, ct))
+            return ApiResponse<ClinicDto>.Fail("Access denied.", "FORBIDDEN");
 
         entity.Name = request.Name.Trim();
         entity.NameAr = request.NameAr?.Trim();
@@ -285,12 +308,13 @@ public class ClinicService : IClinicService
         return ApiResponse<ClinicDto>.Ok(dto!, "Clinic updated.");
     }
 
-    public async Task<ApiResponse> DeleteAsync(int id, string currentUserId, string currentUserRole, CancellationToken ct = default)
+    public async Task<ApiResponse> DeleteAsync(int id, string currentUserId, CancellationToken ct = default)
     {
         var entity = await _db.Clinics.FirstOrDefaultAsync(c => c.Id == id, ct);
         if (entity == null) return ApiResponse.Fail("Clinic not found.", "NOT_FOUND");
-        if (currentUserRole == "ClinicAdmin" && entity.OwnerUserId != currentUserId)
-            return ApiResponse.Fail("Access denied. You can only manage your own clinics.", "ACCESS_DENIED");
+
+        if (!await IsOwnerOrAdminAsync(id, currentUserId, ct))
+            return ApiResponse.Fail("Access denied.", "FORBIDDEN");
         entity.IsDeleted = true;
         entity.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
@@ -313,12 +337,12 @@ public class ClinicService : IClinicService
             .ToListAsync(ct);
     }
 
-    public async Task<ApiResponse<ClinicDoctorDto>> AddDoctorAsync(int clinicId, AddDoctorToClinicRequest request, string currentUserId, string currentUserRole, CancellationToken ct = default)
+    public async Task<ApiResponse<ClinicDoctorDto>> AddDoctorAsync(int clinicId, AddDoctorToClinicRequest request, string currentUserId, CancellationToken ct = default)
     {
-        var clinic = await _db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId, ct);
-        if (clinic == null) return ApiResponse<ClinicDoctorDto>.Fail("Clinic not found.", "CLINIC_NOT_FOUND");
-        if (currentUserRole == "ClinicAdmin" && clinic.OwnerUserId != currentUserId)
-            return ApiResponse<ClinicDoctorDto>.Fail("Access denied. You can only manage your own clinics.", "ACCESS_DENIED");
+        if (!await IsOwnerOrAdminAsync(clinicId, currentUserId, ct))
+            return ApiResponse<ClinicDoctorDto>.Fail("Access denied.", "FORBIDDEN");
+        var clinic = await _db.Clinics.AnyAsync(c => c.Id == clinicId, ct);
+        if (!clinic) return ApiResponse<ClinicDoctorDto>.Fail("Clinic not found.", "CLINIC_NOT_FOUND");
 
         var doctor = await _db.Doctors.AnyAsync(d => d.Id == request.DoctorId, ct);
         if (!doctor) return ApiResponse<ClinicDoctorDto>.Fail("Doctor not found.", "DOCTOR_NOT_FOUND");
@@ -358,16 +382,12 @@ public class ClinicService : IClinicService
         return ApiResponse<ClinicDoctorDto>.Ok(dto, "Doctor added to clinic.");
     }
 
-    public async Task<ApiResponse> RemoveDoctorAsync(int clinicId, int doctorId, string currentUserId, string currentUserRole, CancellationToken ct = default)
+    public async Task<ApiResponse> RemoveDoctorAsync(int clinicId, int doctorId, string currentUserId, CancellationToken ct = default)
     {
+        if (!await IsOwnerOrAdminAsync(clinicId, currentUserId, ct))
+            return ApiResponse.Fail("Access denied.", "FORBIDDEN");
         var cd = await _db.ClinicDoctors.FirstOrDefaultAsync(x => x.ClinicId == clinicId && x.DoctorId == doctorId, ct);
         if (cd == null) return ApiResponse.Fail("Doctor not linked to this clinic.", "NOT_FOUND");
-        if (currentUserRole == "ClinicAdmin")
-        {
-            var clinic = await _db.Clinics.FirstOrDefaultAsync(c => c.Id == clinicId, ct);
-            if (clinic == null || clinic.OwnerUserId != currentUserId)
-                return ApiResponse.Fail("Access denied. You can only manage your own clinics.", "ACCESS_DENIED");
-        }
         cd.IsDeleted = true;
         cd.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);

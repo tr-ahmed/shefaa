@@ -125,7 +125,7 @@ import {
           </div>
           <div class="text-xs mt-0.5" [class]="(s()?.revenueGrowthPercent ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'">
             <mat-icon class="text-[13px] align-middle">{{ (s()?.revenueGrowthPercent ?? 0) >= 0 ? 'trending_up' : 'trending_down' }}</mat-icon>
-            {{ s()?.revenueGrowthPercent ?? 0 }}% vs last month
+            {{ s()?.revenueGrowthPercent ?? 0 }}% {{ 'ADMIN.VS_LAST_MONTH' | translate }}
           </div>
         </div>
       </div>
@@ -184,13 +184,13 @@ import {
           <div *ngFor="let t of report()!.appointmentTrends" class="group">
             <div class="flex items-center justify-between text-xs mb-1.5">
               <span class="text-slate-700 dark:text-slate-200 font-medium">{{ t.label }}</span>
-              <span class="text-slate-400 dark:text-slate-500">{{ t.total }} total</span>
+              <span class="text-slate-400 dark:text-slate-500">{{ t.total }} {{ 'ADMIN.TOTAL_LOWER' | translate }}</span>
             </div>
             <div class="flex h-6 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700/50 gap-px">
-              <div class="bg-emerald-500 transition-all duration-300" [style.width.%]="t.total > 0 ? (t.completed / maxTrendTotal() * 100) : 0" [title]="'Completed: ' + t.completed"></div>
-              <div class="bg-blue-400 transition-all duration-300" [style.width.%]="t.total > 0 ? ((t.total - t.completed - t.cancelled - t.noShow) / maxTrendTotal() * 100) : 0" title="Other statuses"></div>
-              <div class="bg-red-400 transition-all duration-300" [style.width.%]="t.total > 0 ? (t.cancelled / maxTrendTotal() * 100) : 0" [title]="'Cancelled: ' + t.cancelled"></div>
-              <div class="bg-orange-400 transition-all duration-300" [style.width.%]="t.total > 0 ? (t.noShow / maxTrendTotal() * 100) : 0" [title]="'No-Show: ' + t.noShow"></div>
+              <div class="bg-emerald-500 transition-all duration-300" [style.width.%]="t.total > 0 ? (t.completed / maxTrendTotal() * 100) : 0" [title]="('ADMIN.COMPLETED_LOWER' | translate) + ': ' + t.completed"></div>
+              <div class="bg-blue-400 transition-all duration-300" [style.width.%]="t.total > 0 ? ((t.total - t.completed - t.cancelled - t.noShow) / maxTrendTotal() * 100) : 0" [title]="'ADMIN.OTHER_STATUSES' | translate"></div>
+              <div class="bg-red-400 transition-all duration-300" [style.width.%]="t.total > 0 ? (t.cancelled / maxTrendTotal() * 100) : 0" [title]="('ADMIN.CANCELLED_LOWER' | translate) + ': ' + t.cancelled"></div>
+              <div class="bg-orange-400 transition-all duration-300" [style.width.%]="t.total > 0 ? (t.noShow / maxTrendTotal() * 100) : 0" [title]="('ADMIN.NOSHOW_LOWER' | translate) + ': ' + t.noShow"></div>
             </div>
             <div class="flex gap-4 mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">
               <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>{{ t.completed }} {{ 'ADMIN.COMPLETED_LOWER' | translate }}</span>
@@ -325,7 +325,7 @@ import {
             </div>
             <div class="flex-1">
               <div class="text-sm font-semibold text-slate-900 dark:text-white">{{ g.gender }}</div>
-              <div class="text-xs text-slate-500 dark:text-slate-400">{{ g.count }} patients</div>
+              <div class="text-xs text-slate-500 dark:text-slate-400">{{ g.count }} {{ 'ADMIN.PATIENTS_LOWER' | translate }}</div>
             </div>
             <div class="text-xl font-bold text-slate-900 dark:text-white">{{ genderPct(g) }}%</div>
           </div>
@@ -498,7 +498,7 @@ export class AdminDashboardComponent implements OnInit {
 
   private t(key: string): string { return this.translate.instant(key); }
 
-  today() { return new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
+  today() { return new Date().toLocaleDateString(this.translate.currentLang === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
 
   // ── Chart helpers ──
   maxTrendTotal() {
@@ -539,13 +539,8 @@ export class AdminDashboardComponent implements OnInit {
       'InProgress': '#8b5cf6', 'Completed': '#10b981', 'Cancelled': '#ef4444',
       'NoShow': '#f97316', 'Rescheduled': '#6366f1'
     };
-    const statusLabels: Record<string, string> = {
-      'Pending': 'Pending', 'Confirmed': 'Confirmed', 'CheckedIn': 'Checked In',
-      'InProgress': 'In Progress', 'Completed': 'Completed', 'Cancelled': 'Cancelled',
-      'NoShow': 'No Show', 'Rescheduled': 'Rescheduled'
-    };
     return byStatus.map(st => ({
-      label: statusLabels[st.status] ?? st.status,
+      label: this.translate.instant('STATUS.' + st.status),
       count: st.count,
       color: statusColors[st.status] ?? '#6b7280',
       pct: total > 0 ? Math.round(st.count / total * 100) : 0

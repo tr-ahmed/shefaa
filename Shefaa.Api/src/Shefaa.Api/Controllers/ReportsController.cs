@@ -26,7 +26,7 @@ public class ReportsController : ControllerBase
         if (!User.IsInRole("ClinicAdmin")) return null;
         var userId = GetUserId();
         if (userId == null) return null;
-        var clinics = await _clinics.GetMyClinicsAsync(userId);
+        var clinics = await _clinics.GetByOwnerUserIdAsync(userId);
         return clinics.FirstOrDefault()?.Id;
     }
 

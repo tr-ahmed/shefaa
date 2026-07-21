@@ -1,576 +1,476 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule, DecimalPipe, PercentPipe } from '@angular/common';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { DataService } from '../../core/services/data.service';
 import { ExcelExportService, SheetData } from '../../core/services/excel-export.service';
-import {
-  AdminReportDto, DashboardSummaryDto, AppointmentTrendDto,
-  SpecialtyStatsDto, PeakHourDto, DayOfWeekStatsDto,
-  GenderDistributionDto, TopDoctorDto, RevenueByMonthDto,
-  PatientRegistrationTrendDto
-} from '../../core/models';
+
+interface ReportType {
+  id: string;
+  icon: string;
+  label: string;
+  desc: string;
+  needsMonthRange: boolean;
+  needsClinic: boolean;
+  color: string;
+}
+
+interface ColumnDef {
+  key: string;
+  label: string;
+  type?: 'badge-success' | 'badge-danger' | 'badge-warning' | 'badge-info' | 'currency' | 'percent' | 'rating';
+}
+
+const REPORT_TYPES: ReportType[] = [
+  { id: 'appointment-trends',  icon: 'date_range',       label: 'APPOINTMENT_TRENDS',      desc: 'APPOINTMENT_TRENDS_DESC',      needsMonthRange: true,  needsClinic: false, color: 'from-emerald-500 to-teal-500' },
+  { id: 'revenue',             icon: 'payments',          label: 'REVENUE',                 desc: 'REVENUE_DESC',                  needsMonthRange: true,  needsClinic: true,  color: 'from-blue-500 to-cyan-500' },
+  { id: 'doctor-performance',  icon: 'medical_services',  label: 'DOCTOR_PERFORMANCE',      desc: 'DOCTOR_PERFORMANCE_DESC',      needsMonthRange: false, needsClinic: true,  color: 'from-violet-500 to-purple-500' },
+  { id: 'top-doctors',         icon: 'stars',             label: 'TOP_DOCTORS',             desc: 'TOP_DOCTORS_DESC',             needsMonthRange: false, needsClinic: true,  color: 'from-amber-500 to-orange-500' },
+  { id: 'specialty-stats',     icon: 'biotech',           label: 'SPECIALTY_STATS',         desc: 'SPECIALTY_STATS_DESC',         needsMonthRange: false, needsClinic: false, color: 'from-rose-500 to-pink-500' },
+  { id: 'patient-registrations', icon: 'person_add',      label: 'PATIENT_REGISTRATIONS',   desc: 'PATIENT_REGISTRATIONS_DESC',   needsMonthRange: true,  needsClinic: false, color: 'from-sky-500 to-indigo-500' },
+  { id: 'peak-hours',          icon: 'schedule',          label: 'PEAK_HOURS',              desc: 'PEAK_HOURS_DESC',              needsMonthRange: false, needsClinic: false, color: 'from-orange-500 to-red-500' },
+  { id: 'day-of-week',         icon: 'calendar_view_week', label: 'DAY_OF_WEEK',            desc: 'DAY_OF_WEEK_DESC',             needsMonthRange: false, needsClinic: false, color: 'from-teal-500 to-emerald-500' },
+  { id: 'gender-distribution', icon: 'diversity_3',       label: 'GENDER_DISTRIBUTION',     desc: 'GENDER_DISTRIBUTION_DESC',     needsMonthRange: false, needsClinic: false, color: 'from-pink-500 to-rose-500' },
+  { id: 'appointment-status',  icon: 'donut_small',       label: 'APPOINTMENT_STATUS',      desc: 'APPOINTMENT_STATUS_DESC',     needsMonthRange: true,  needsClinic: true,  color: 'from-cyan-500 to-blue-500' },
+  { id: 'clinic-summary',      icon: 'local_hospital',    label: 'CLINIC_SUMMARY',          desc: 'CLINIC_SUMMARY_DESC',         needsMonthRange: true,  needsClinic: true,  color: 'from-indigo-500 to-violet-500' },
+];
 
 @Component({
   selector: 'app-admin-reports',
   standalone: true,
-  imports: [CommonModule, FormsModule, DecimalPipe, PercentPipe, MatIconModule, TranslateModule],
+  imports: [CommonModule, FormsModule, DecimalPipe, MatIconModule, TranslateModule],
   template: `
-    <div class="page-header animate-fade-in">
-      <div>
-        <h1 class="page-title">{{ 'NAV.REPORTS' | translate }}</h1>
-        <p class="page-subtitle">{{ 'ADMIN.REPORTS_DESC' | translate }}</p>
+    <style>
+      @media print {
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        body { font-size: 9pt; }
+        .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+        .report-table td, .report-table th { padding: 4px 6px !important; font-size: 8pt !important; }
+      }
+      .print-only { display: none; }
+    </style>
+
+    <div class="no-print">
+      <div class="page-header animate-fade-in">
+        <div>
+          <h1 class="page-title">{{ 'NAV.REPORTS' | translate }}</h1>
+          <p class="page-subtitle">{{ 'ADMIN.REPORTS_DESC' | translate }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button (click)="generate()" [disabled]="loading()" class="btn-primary">
+            @if (!loading()) { <mat-icon class="!text-[18px]">play_arrow</mat-icon> }
+            @if (loading()) { <span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block me-2"></span> }
+            {{ loading() ? ('ADMIN.REPORTS.GENERATING' | translate) : ('ADMIN.REPORTS.GENERATE' | translate) }}
+          </button>
+        </div>
       </div>
-      <div class="flex items-center gap-3">
-        <select [(ngModel)]="selectedMonths" (change)="reload()" class="input !w-auto">
-          <option [value]="3">{{ 'ADMIN.LAST_3_MONTHS' | translate }}</option>
-          <option [value]="6">{{ 'ADMIN.LAST_6_MONTHS' | translate }}</option>
-          <option [value]="12">{{ 'ADMIN.LAST_12_MONTHS' | translate }}</option>
-          <option [value]="24">{{ 'ADMIN.LAST_24_MONTHS' | translate }}</option>
-        </select>
-        <button (click)="exportExcel()" class="btn-primary" [disabled]="loading()">
-          <mat-icon class="!text-[18px]">download</mat-icon>
-          {{ 'ADMIN.EXPORT_EXCEL' | translate }}
-        </button>
+
+      <div class="grid lg:grid-cols-4 gap-6 mb-6 animate-fade-in">
+        <div class="lg:col-span-3">
+          <label class="label mb-3">{{ 'ADMIN.REPORTS.REPORT_TYPE' | translate }}</label>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            @for (rt of reportTypes; track rt.id) {
+              <button (click)="selectReport(rt.id)" class="text-left p-3 rounded-xl border-2 transition-all duration-150"
+                [class]="selectedType() === rt.id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 shadow-md' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-sm'">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center mb-2 bg-gradient-to-br shadow-sm" [class]="rt.color + ' text-white'">
+                  <mat-icon class="!text-[16px]">{{ rt.icon }}</mat-icon>
+                </div>
+                <div class="font-semibold text-xs text-slate-800 dark:text-white">{{ 'ADMIN.REPORTS.' + rt.label | translate }}</div>
+                <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">{{ 'ADMIN.REPORTS.' + rt.desc | translate }}</div>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div>
+          <label class="label mb-3">{{ 'COMMON.FILTER' | translate }}</label>
+          <div class="card p-4 space-y-3">
+            @if (selectedReport()?.needsMonthRange) {
+              <div>
+                <label class="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1 block">{{ 'ADMIN.REPORTS.TIME_RANGE' | translate }}</label>
+                <select [(ngModel)]="months" class="input !w-full">
+                  <option [value]="3">{{ 'ADMIN.LAST_3_MONTHS' | translate }}</option>
+                  <option [value]="6">{{ 'ADMIN.LAST_6_MONTHS' | translate }}</option>
+                  <option [value]="12">{{ 'ADMIN.LAST_12_MONTHS' | translate }}</option>
+                  <option [value]="24">{{ 'ADMIN.LAST_24_MONTHS' | translate }}</option>
+                </select>
+              </div>
+            }
+            @if (selectedReport()?.needsClinic && clinics().length > 0) {
+              <div>
+                <label class="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1 block">{{ 'ADMIN.CLINIC' | translate }}</label>
+                <select [(ngModel)]="clinicId" class="input !w-full">
+                  <option [value]="0">{{ 'ADMIN.REPORTS.ALL_CLINICS' | translate }}</option>
+                  @for (c of clinics(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+                </select>
+              </div>
+            }
+            @if (selectedReport()?.needsClinic && clinics().length === 0) {
+              <div class="text-xs text-slate-400">{{ 'ADMIN.REPORTS.NO_CLINICS' | translate }}</div>
+            }
+            <button (click)="generate()" [disabled]="loading()" class="btn-primary w-full !py-2.5 mt-2">
+              @if (!loading()) { <mat-icon class="!text-[16px]">refresh</mat-icon><span>{{ 'ADMIN.REPORTS.RUN' | translate }}</span> }
+              @if (loading()) { <span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block"></span> }
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Loading -->
-    <div *ngIf="loading()" class="space-y-6">
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div *ngFor="let i of [1,2,3,4,5,6,7,8]" class="card p-5"><div class="skeleton h-4 w-24 rounded mb-3"></div><div class="skeleton h-8 w-16 rounded"></div></div>
+    @if (loading()) {
+      <div class="space-y-4 animate-fade-in no-print">
+        <div class="card p-6">
+          <div class="skeleton h-8 w-48 rounded mb-6"></div>
+          <div class="skeleton h-6 w-full rounded mb-3"></div>
+          <div class="skeleton h-6 w-full rounded mb-3"></div>
+          <div class="skeleton h-6 w-3/4 rounded"></div>
+        </div>
       </div>
-      <div class="card p-6"><div class="skeleton h-64 w-full rounded-xl"></div></div>
+    }
+
+    <div class="print-only mb-6">
+      <h1 class="text-xl font-bold mb-1">{{ 'ADMIN.REPORTS.' + (selectedReport()?.label || '') | translate }}</h1>
+      <p class="text-xs text-slate-500 mb-1">{{ 'ADMIN.REPORTS.PRINT_HEADER' | translate }}</p>
+      <p class="text-xs text-slate-400">{{ 'ADMIN.REPORTS.GENERATED' | translate }}: {{ generatedAt }}</p>
+      <hr class="my-2 border-slate-300">
     </div>
 
-    <div *ngIf="!loading() && report() as r" class="space-y-6 animate-fade-in">
-
-      <!-- ═══════════════ ROW 1: Core KPIs ═══════════════ -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="stat-card">
-          <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 flex items-center justify-center"><mat-icon>groups</mat-icon></div>
-            <span class="text-xs text-surface-500 dark:text-surface-400 uppercase tracking-wide font-medium">{{ 'ADMIN.TOTAL_PATIENTS' | translate }}</span>
+    @if (!loading() && resultData().length > 0) {
+      <div class="animate-fade-in">
+        <div class="no-print flex items-center justify-between mb-4">
+          <div class="text-sm text-slate-600 dark:text-slate-400">
+            <span class="font-semibold text-slate-800 dark:text-white">{{ 'ADMIN.REPORTS.' + (selectedReport()?.label || '') | translate }}</span>
+            <span class="mx-1">·</span>
+            {{ resultData().length }} {{ 'ADMIN.REPORTS.ROWS' | translate }}
           </div>
-          <div class="text-3xl font-bold text-surface-900 dark:text-white">{{ r.summary.totalPatients | number }}</div>
-          <div class="text-xs text-surface-400 mt-1">+{{ r.summary.newPatientsThisMonth }} {{ 'ADMIN.THIS_MONTH' | translate }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center"><mat-icon>medical_services</mat-icon></div>
-            <span class="text-xs text-surface-500 dark:text-surface-400 uppercase tracking-wide font-medium">{{ 'ADMIN.TOTAL_DOCTORS' | translate }}</span>
-          </div>
-          <div class="text-3xl font-bold text-surface-900 dark:text-white">{{ r.summary.totalDoctors | number }}</div>
-          <div class="text-xs text-surface-400 mt-1">+{{ r.summary.newDoctorsThisMonth }} {{ 'ADMIN.THIS_MONTH' | translate }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center"><mat-icon>calendar_month</mat-icon></div>
-            <span class="text-xs text-surface-500 dark:text-surface-400 uppercase tracking-wide font-medium">{{ 'ADMIN.TOTAL_APPOINTMENTS' | translate }}</span>
-          </div>
-          <div class="text-3xl font-bold text-surface-900 dark:text-white">{{ r.summary.totalAppointments | number }}</div>
-          <div class="text-xs text-surface-400 mt-1">{{ r.summary.appointmentsThisMonth }} {{ 'ADMIN.THIS_MONTH' | translate }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center"><mat-icon>payments</mat-icon></div>
-            <span class="text-xs text-surface-500 dark:text-surface-400 uppercase tracking-wide font-medium">{{ 'ADMIN.REVENUE_MONTH' | translate }}</span>
-          </div>
-          <div class="text-3xl font-bold text-surface-900 dark:text-white">{{ r.summary.estimatedRevenueThisMonth | number:'1.0-0' }} <span class="text-sm font-normal text-surface-400">{{ 'COMMON.CURRENCY' | translate }}</span></div>
-          <div class="text-xs mt-1" [class]="r.summary.revenueGrowthPercent >= 0 ? 'text-emerald-500' : 'text-red-500'">
-            <mat-icon class="!text-[12px]">{{ r.summary.revenueGrowthPercent >= 0 ? 'trending_up' : 'trending_down' }}</mat-icon>
-            {{ r.summary.revenueGrowthPercent | number:'1.1-1' }}% vs last month
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══════════════ ROW 2: Rates ═══════════════ -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="card p-4 text-center">
-          <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ r.summary.completionRate | percent:'1.1-1' }}</div>
-          <div class="text-xs text-surface-500 dark:text-surface-400 mt-1">{{ 'ADMIN.COMPLETION_RATE' | translate }}</div>
-        </div>
-        <div class="card p-4 text-center">
-          <div class="text-2xl font-bold text-red-600 dark:text-red-400">{{ r.summary.noShowRate | percent:'1.1-1' }}</div>
-          <div class="text-xs text-surface-500 dark:text-surface-400 mt-1">{{ 'ADMIN.NO_SHOW_RATE' | translate }}</div>
-        </div>
-        <div class="card p-4 text-center">
-          <div class="text-2xl font-bold text-amber-600 dark:text-amber-400">{{ r.summary.cancellationRate | percent:'1.1-1' }}</div>
-          <div class="text-xs text-surface-500 dark:text-surface-400 mt-1">{{ 'ADMIN.CANCELLATION_RATE' | translate }}</div>
-        </div>
-        <div class="card p-4 text-center">
-          <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ r.summary.avgConsultationFee | number:'1.0-0' }}</div>
-          <div class="text-xs text-surface-500 dark:text-surface-400 mt-1">{{ 'ADMIN.AVG_FEE' | translate }} ({{ 'COMMON.CURRENCY' | translate }})</div>
-        </div>
-      </div>
-
-      <!-- ═══════════════ ROW 3: Appointment Trends + Revenue ═══════════════ -->
-      <div class="grid lg:grid-cols-2 gap-6">
-        <!-- Appointment Trends -->
-        <div class="card p-6">
-          <h3 class="font-semibold text-lg text-surface-900 dark:text-white mb-5">{{ 'ADMIN.APPOINTMENT_TRENDS' | translate }}</h3>
-          <div *ngIf="r.appointmentTrends.length === 0" class="empty-state !py-10">{{ 'COMMON.NO_DATA' | translate }}</div>
-          <div *ngIf="r.appointmentTrends.length > 0" class="space-y-3">
-            <div *ngFor="let t of r.appointmentTrends" class="group">
-              <div class="flex items-center justify-between text-xs mb-1.5">
-                <span class="font-medium text-surface-700 dark:text-surface-300">{{ t.label }}</span>
-                <span class="text-surface-400">{{ t.total }} {{ 'ADMIN.TOTAL' | translate }}</span>
-              </div>
-              <div class="h-5 rounded-lg bg-surface-100 dark:bg-surface-800 overflow-hidden flex">
-                <div class="bg-emerald-500 transition-all duration-500" [style.width.%]="(t.completed / maxTrend() * 100) || 0" [title]="'Completed: ' + t.completed"></div>
-                <div class="bg-red-400 transition-all duration-500" [style.width.%]="(t.cancelled / maxTrend() * 100) || 0" [title]="'Cancelled: ' + t.cancelled"></div>
-                <div class="bg-amber-400 transition-all duration-500" [style.width.%]="(t.noShow / maxTrend() * 100) || 0" [title]="'No Show: ' + t.noShow"></div>
-              </div>
-            </div>
-            <div class="flex items-center gap-4 mt-4 text-xs">
-              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> {{ 'ADMIN.COMPLETION' | translate }}</span>
-              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-400"></span> {{ 'ADMIN.CANCELLED' | translate }}</span>
-              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> {{ 'ADMIN.NO_SHOW' | translate }}</span>
-            </div>
+          <div class="flex items-center gap-2">
+            <button (click)="windowPrint()" class="btn-secondary !py-1.5 !px-3">
+              <mat-icon class="!text-[16px]">print</mat-icon> {{ 'ADMIN.REPORTS.PRINT' | translate }}
+            </button>
+            <button (click)="exportExcel()" class="btn-secondary !py-1.5 !px-3">
+              <mat-icon class="!text-[16px]">download</mat-icon> {{ 'ADMIN.REPORTS.EXCEL' | translate }}
+            </button>
           </div>
         </div>
 
-        <!-- Revenue Chart -->
-        <div class="card p-6">
-          <h3 class="font-semibold text-lg text-surface-900 dark:text-white mb-5">{{ 'ADMIN.MONTHLY_REVENUE' | translate }}</h3>
-          <div *ngIf="r.revenueByMonth.length === 0" class="empty-state !py-10">{{ 'COMMON.NO_DATA' | translate }}</div>
-          <div *ngIf="r.revenueByMonth.length" class="flex items-end justify-around gap-3 px-2 pt-4 pb-2">
-            <div *ngFor="let rv of r.revenueByMonth" class="flex flex-col items-center flex-1 group">
-              <div class="text-[10px] font-bold text-surface-600 dark:text-surface-300 mb-2 opacity-0 group-hover:opacity-100 transition-opacity">{{ rv.revenue | number:'1.0-0' }} {{ 'COMMON.CURRENCY' | translate }}</div>
-              <div class="w-full rounded-t-lg bg-gradient-to-t from-primary-500 to-accent-500 hover:from-primary-600 hover:to-accent-600 transition-all duration-300 shadow-sm hover:shadow-md min-h-[4px]"
-                   [style.height.%]="(rv.revenue / maxRevenue() * 100) || 1"></div>
-              <div class="text-[10px] font-medium text-surface-500 dark:text-surface-400 mt-2 text-center">{{ rv.label }}</div>
-              <div class="text-[9px] text-surface-400 dark:text-surface-500">{{ rv.appointmentCount }} appts</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══════════════ ROW 4: Specialty Performance ═══════════════ -->
-      <div class="card p-6">
-        <h3 class="font-semibold text-lg text-surface-900 dark:text-white mb-5">{{ 'ADMIN.SPECIALTY_PERFORMANCE' | translate }}</h3>
-        <div *ngIf="r.specialtyStats.length === 0" class="empty-state !py-10">{{ 'COMMON.NO_DATA' | translate }}</div>
-        <div *ngIf="r.specialtyStats.length > 0" class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-xs text-surface-500 dark:text-surface-400 uppercase tracking-wider border-b border-surface-200 dark:border-surface-700">
-                <th class="text-left pb-3 font-semibold">{{ 'ADMIN.SPECIALTY' | translate }}</th>
-                <th class="text-center pb-3 font-semibold">{{ 'ADMIN.DOCTORS_COUNT' | translate }}</th>
-                <th class="text-center pb-3 font-semibold">{{ 'ADMIN.APPOINTMENTS_COUNT' | translate }}</th>
-                <th class="text-right pb-3 font-semibold">{{ 'ADMIN.REVENUE' | translate }}</th>
-                <th class="pb-3 w-40"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let s of r.specialtyStats" class="border-b border-surface-50 dark:border-surface-800 hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-colors">
-                <td class="py-3 font-semibold text-surface-900 dark:text-white">{{ s.specialtyName }}</td>
-                <td class="py-3 text-center text-surface-600 dark:text-surface-300">{{ s.doctorCount }}</td>
-                <td class="py-3 text-center">
-                  <span class="badge badge-info">{{ s.appointmentCount }}</span>
-                </td>
-                <td class="py-3 text-right font-semibold text-surface-900 dark:text-white">{{ s.revenue | number:'1.0-0' }} {{ 'COMMON.CURRENCY' | translate }}</td>
-                <td class="py-3 pl-3">
-                  <div class="h-2 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
-                    <div class="h-full rounded-full bg-gradient-to-r from-primary-400 to-accent-400 transition-all duration-700"
-                         [style.width.%]="(s.revenue / maxSpecialtyRevenue() * 100) || 1"></div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- ═══════════════ ROW 5: Patient Trends + Peak Hours + Day of Week ═══════════════ -->
-      <div class="grid lg:grid-cols-3 gap-6">
-        <!-- Patient Registration Trends -->
-        <div class="card p-6">
-          <h3 class="font-semibold text-lg text-surface-900 dark:text-white mb-5">{{ 'ADMIN.PATIENT_REGISTRATIONS' | translate }}</h3>
-          <div *ngIf="r.patientTrends.length === 0" class="empty-state !py-10">{{ 'COMMON.NO_DATA' | translate }}</div>
-          <div *ngIf="r.patientTrends.length" class="space-y-3">
-            <div *ngFor="let pt of r.patientTrends" class="flex items-center gap-3">
-              <span class="text-xs text-surface-500 w-16 shrink-0">{{ pt.label }}</span>
-              <div class="flex-1 h-4 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
-                <div class="h-full rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 transition-all duration-700"
-                     [style.width.%]="(pt.count / maxPatientTrend() * 100) || 0"></div>
-              </div>
-              <span class="text-xs font-bold text-surface-700 dark:text-surface-300 w-8 text-right">{{ pt.count }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Peak Hours -->
-        <div class="card p-6">
-          <h3 class="font-semibold text-lg text-surface-900 dark:text-white mb-5">{{ 'ADMIN.PEAK_HOURS' | translate }}</h3>
-          <div *ngIf="r.peakHours.length === 0" class="empty-state !py-10">{{ 'COMMON.NO_DATA' | translate }}</div>
-          <div *ngIf="r.peakHours.length" class="space-y-1.5">
-            <div *ngFor="let ph of r.peakHours" class="flex items-center gap-2">
-              <span class="text-[10px] text-surface-500 w-10 text-right shrink-0 font-mono">{{ ph.hour }}:00</span>
-              <div class="flex-1 h-3.5 rounded bg-surface-100 dark:bg-surface-800 overflow-hidden">
-                <div class="h-full rounded bg-gradient-to-r from-violet-400 to-purple-400 transition-all duration-700"
-                     [style.width.%]="(ph.count / maxPeakHour() * 100) || 0"></div>
-              </div>
-              <span class="text-[10px] font-bold text-surface-700 dark:text-surface-300 w-5">{{ ph.count }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Day of Week -->
-        <div class="card p-6">
-          <h3 class="font-semibold text-lg text-surface-900 dark:text-white mb-5">{{ 'ADMIN.DAY_OF_WEEK' | translate }}</h3>
-          <div *ngIf="r.dayOfWeekStats.length === 0" class="empty-state !py-10">{{ 'COMMON.NO_DATA' | translate }}</div>
-          <div *ngIf="r.dayOfWeekStats.length" class="space-y-2">
-            <div *ngFor="let dw of r.dayOfWeekStats" class="flex items-center gap-3">
-              <span class="text-xs text-surface-600 dark:text-surface-300 w-12 shrink-0 font-medium">{{ dw.dayName }}</span>
-              <div class="flex-1 h-5 rounded-lg bg-surface-100 dark:bg-surface-800 overflow-hidden">
-                <div class="h-full rounded-lg bg-gradient-to-r from-emerald-400 to-teal-400 transition-all duration-700"
-                     [style.width.%]="(dw.count / maxDayOfWeek() * 100) || 0"></div>
-              </div>
-              <span class="text-xs font-bold text-surface-700 dark:text-surface-300 w-6 text-right">{{ dw.count }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══════════════ ROW 6: Gender + Top Doctors ═══════════════ -->
-      <div class="grid lg:grid-cols-3 gap-6">
-        <!-- Gender Distribution -->
-        <div class="card p-6">
-          <h3 class="font-semibold text-lg text-surface-900 dark:text-white mb-5">{{ 'ADMIN.GENDER_DISTRIBUTION' | translate }}</h3>
-          <div *ngIf="r.genderDistribution.length === 0" class="empty-state !py-10">{{ 'COMMON.NO_DATA' | translate }}</div>
-          <div *ngIf="r.genderDistribution.length" class="space-y-3">
-            <div *ngFor="let g of r.genderDistribution" class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-lg flex items-center justify-center"
-                   [ngClass]="genderIcon(g.gender).bg">
-                <mat-icon class="!text-[16px]" [class]="genderIcon(g.gender).text">{{ genderIcon(g.gender).icon }}</mat-icon>
-              </div>
-              <div class="flex-1">
-                <div class="flex items-center justify-between mb-1">
-                  <span class="text-sm font-medium text-surface-700 dark:text-surface-300">{{ g.gender }}</span>
-                  <span class="text-xs font-bold text-surface-500">{{ g.count | number }}</span>
-                </div>
-                <div class="h-2 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
-                  <div class="h-full rounded-full transition-all duration-700"
-                       [ngClass]="genderIcon(g.gender).bar"
-                       [style.width.%]="genderPercent(g.count)"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Top Doctors -->
-        <div class="lg:col-span-2 card p-6">
-          <h3 class="font-semibold text-lg text-surface-900 dark:text-white mb-5">{{ 'ADMIN.TOP_DOCTORS' | translate }}</h3>
-          <div *ngIf="r.topDoctors.length === 0" class="empty-state !py-10">{{ 'COMMON.NO_DATA' | translate }}</div>
-          <div *ngIf="r.topDoctors.length > 0" class="overflow-x-auto">
-            <table class="w-full text-sm">
+        <div class="card overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm report-table">
               <thead>
-                <tr class="text-xs text-surface-500 dark:text-surface-400 uppercase tracking-wider border-b border-surface-200 dark:border-surface-700">
-                  <th class="text-left pb-3 font-semibold w-10">#</th>
-                  <th class="text-left pb-3 font-semibold">{{ 'ADMIN.DOCTOR' | translate }}</th>
-                  <th class="text-left pb-3 font-semibold">{{ 'ADMIN.SPECIALTY' | translate }}</th>
-                  <th class="text-center pb-3 font-semibold">{{ 'ADMIN.RATING' | translate }}</th>
-                  <th class="text-right pb-3 font-semibold">{{ 'ADMIN.DONE' | translate }}</th>
-                  <th class="pb-3 w-32"></th>
+                <tr class="bg-slate-50 dark:bg-slate-800/60 text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th *ngFor="let col of columns()" class="text-left py-3 px-4 font-semibold whitespace-nowrap">{{ col.label }}</th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let d of r.topDoctors; let i = index" class="border-b border-surface-50 dark:border-surface-800 hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-colors">
-                  <td class="py-3">
-                    <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs"
-                         [class]="i === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' : i === 1 ? 'bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300' : i === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300' : 'bg-surface-100 text-surface-500 dark:bg-surface-700 dark:text-surface-400'">
-                      {{ i + 1 }}
-                    </div>
-                  </td>
-                  <td class="py-3 font-semibold text-surface-900 dark:text-white">{{ d.doctorName }}</td>
-                  <td class="py-3 text-surface-500 dark:text-surface-400">{{ d.specialtyName }}</td>
-                  <td class="py-3 text-center">
-                    <span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                      <mat-icon class="!text-[14px]">star</mat-icon>
-                      <span class="text-xs font-bold">{{ d.rating || '5.0' }}</span>
-                    </span>
-                  </td>
-                  <td class="py-3 text-right">
-                    <span class="badge badge-success font-bold">{{ d.completedAppointments }}</span>
-                  </td>
-                  <td class="py-3 pl-3">
-                    <div class="h-2 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
-                      <div class="h-full rounded-full bg-emerald-400 transition-all duration-700"
-                           [style.width.%]="(d.completedAppointments / maxDoctorCompleted() * 100) || 1"></div>
-                    </div>
+                <tr *ngFor="let row of resultData(); let i = index" class="border-t border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors" [ngClass]="i % 2 === 1 ? 'bg-slate-50/50' : ''">
+                  <td *ngFor="let col of columns()" class="py-2.5 px-4 text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                    @if (col.type === 'badge-success') { <span class="badge badge-success">{{ row[col.key] }}</span> }
+                    @else if (col.type === 'badge-danger') { <span class="badge badge-danger">{{ row[col.key] }}</span> }
+                    @else if (col.type === 'badge-warning') { <span class="badge badge-warning">{{ row[col.key] }}</span> }
+                    @else if (col.type === 'badge-info') { <span class="badge badge-info">{{ row[col.key] }}</span> }
+                    @else if (col.type === 'currency') { <span>{{ (row[col.key] || 0) | number:'1.0-0' }} {{ 'COMMON.CURRENCY' | translate }}</span> }
+                    @else if (col.type === 'percent') { <span>{{ (row[col.key] || 0) | percent:'1.1-1' }}</span> }
+                    @else if (col.type === 'rating') {
+                      <span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                        <mat-icon class="!text-[13px]">star</mat-icon>
+                        <span class="text-xs font-bold">{{ row[col.key] || '5.0' }}</span>
+                      </span>
+                    }
+                    @else { <span>{{ row[col.key] }}</span> }
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-      </div>
 
-      <!-- ═══════════════ ROW 7: Doctor Performance ═══════════════ -->
-      <div class="card p-6">
-        <h3 class="font-semibold text-lg text-surface-900 dark:text-white mb-5">{{ 'ADMIN.DOCTOR_PERFORMANCE' | translate }}</h3>
-        <div *ngIf="doctorPerf().length === 0" class="empty-state !py-10">{{ 'COMMON.NO_DATA' | translate }}</div>
-        <div *ngIf="doctorPerf().length > 0" class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-xs text-surface-500 dark:text-surface-400 uppercase tracking-wider border-b border-surface-200 dark:border-surface-700">
-                <th class="text-left pb-3 font-semibold">{{ 'ADMIN.DOCTOR' | translate }}</th>
-                <th class="text-left pb-3 font-semibold">{{ 'ADMIN.SPECIALTY' | translate }}</th>
-                <th class="text-center pb-3 font-semibold">{{ 'ADMIN.TOTAL' | translate }}</th>
-                <th class="text-center pb-3 font-semibold">{{ 'ADMIN.COMPLETION' | translate }}</th>
-                <th class="text-center pb-3 font-semibold">{{ 'ADMIN.CANCELLED' | translate }}</th>
-                <th class="text-center pb-3 font-semibold">{{ 'ADMIN.REVENUE' | translate }}</th>
-                <th class="text-center pb-3 font-semibold">{{ 'ADMIN.RATING' | translate }}</th>
-                <th class="pb-3 w-36"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let d of doctorPerf()" class="border-b border-surface-50 dark:border-surface-800 hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-colors">
-                <td class="py-3 font-semibold text-surface-900 dark:text-white">{{ d.doctorName }}</td>
-                <td class="py-3 text-surface-500 dark:text-surface-400">{{ d.specialtyName }}</td>
-                <td class="py-3 text-center text-surface-700 dark:text-surface-300">{{ d.totalAppointments }}</td>
-                <td class="py-3 text-center"><span class="badge badge-success">{{ d.completedAppointments }}</span></td>
-                <td class="py-3 text-center"><span class="badge badge-danger">{{ d.cancelledAppointments }}</span></td>
-                <td class="py-3 text-center font-semibold text-surface-900 dark:text-white">{{ d.revenue | number:'1.0-0' }} {{ 'COMMON.CURRENCY' | translate }}</td>
-                <td class="py-3 text-center">
-                  <span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                    <mat-icon class="!text-[14px]">star</mat-icon>
-                    <span class="text-xs font-bold">{{ d.rating || '5.0' }}</span>
-                  </span>
-                </td>
-                <td class="py-3 pl-3">
-                  <div class="h-2 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
-                    <div class="h-full rounded-full transition-all duration-700"
-                         [ngClass]="d.completionRate >= 0.8 ? 'bg-emerald-400' : d.completionRate >= 0.5 ? 'bg-amber-400' : 'bg-red-400'"
-                         [style.width.%]="(d.completionRate * 100)"></div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="no-print text-center text-xs text-slate-400 dark:text-slate-500 mt-4">
+          {{ resultData().length }} {{ resultData().length === 1 ? ('ADMIN.REPORTS.RECORD' | translate) : ('ADMIN.REPORTS.RECORDS' | translate) }}
         </div>
       </div>
+    }
 
-    </div>
+    @if (!loading() && resultData().length === 0 && hasGenerated()) {
+      <div class="card p-12 text-center animate-fade-in">
+        <div class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-700 text-slate-400 mx-auto flex items-center justify-center mb-4">
+          <mat-icon class="text-3xl">search_off</mat-icon>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-1">{{ 'ADMIN.REPORTS.NO_DATA' | translate }}</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400">{{ 'ADMIN.REPORTS.NO_DATA_HINT' | translate }}</p>
+      </div>
+    }
+
+    @if (!loading() && !hasGenerated()) {
+      <div class="no-print card p-12 text-center animate-fade-in">
+        <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/40 dark:to-accent-900/40 text-primary-500 dark:text-primary-300 mx-auto flex items-center justify-center mb-5 shadow-lg shadow-primary-500/10">
+          <mat-icon class="text-4xl">assignment</mat-icon>
+        </div>
+        <h2 class="text-xl font-bold text-slate-800 dark:text-white mb-2">{{ 'ADMIN.REPORTS.CENTER' | translate }}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed" [innerHTML]="'ADMIN.REPORTS.SELECT_HINT' | translate">
+        </p>
+      </div>
+    }
   `
 })
 export class AdminReportsComponent implements OnInit {
   private data = inject(DataService);
   private excel = inject(ExcelExportService);
-  private translate = inject(TranslateService);
+  translate = inject(TranslateService);
 
-  loading = signal(true);
-  report = signal<AdminReportDto | null>(null);
-  doctorPerf = signal<any[]>([]);
-  selectedMonths = 6;
+  readonly reportTypes = REPORT_TYPES;
 
-  ngOnInit() { this.reload(); }
+  selectedType = signal('appointment-trends');
+  months = 6;
+  clinicId = 0;
+  loading = signal(false);
+  hasGenerated = signal(false);
+  generatedAt = '';
 
-  reload() {
+  clinics = signal<{ id: number; name: string }[]>([]);
+  resultData = signal<Record<string, any>[]>([]);
+  columns = signal<ColumnDef[]>([]);
+
+  selectedReport = computed(() => this.reportTypes.find(r => r.id === this.selectedType()) || null);
+
+  ngOnInit() {
+    this.data.listClinics(1, 100).subscribe({
+      next: (res: any) => {
+        if (res?.items) this.clinics.set(res.items.map((c: any) => ({ id: c.id, name: c.name })));
+      }
+    });
+  }
+
+  selectReport(id: string) {
+    this.selectedType.set(id);
+    this.hasGenerated.set(false);
+  }
+
+  generate() {
     this.loading.set(true);
-    this.data.getAdminReport(this.selectedMonths).subscribe({
-      next: r => { this.report.set(r); this.loading.set(false); },
-      error: () => this.loading.set(false)
+    this.hasGenerated.set(true);
+    this.generatedAt = new Date().toLocaleString();
+    const months = this.months;
+    const clinicId = this.clinicId || undefined;
+    switch (this.selectedType()) {
+      case 'appointment-trends': this.loadAppointmentTrends(months); break;
+      case 'revenue': this.loadRevenue(months); break;
+      case 'doctor-performance': this.loadDoctorPerformance(clinicId); break;
+      case 'top-doctors': this.loadTopDoctors(); break;
+      case 'specialty-stats': this.loadSpecialtyStats(); break;
+      case 'patient-registrations': this.loadPatientTrends(months); break;
+      case 'peak-hours': this.loadPeakHours(); break;
+      case 'day-of-week': this.loadDayOfWeek(); break;
+      case 'gender-distribution': this.loadGenderDistribution(); break;
+      case 'appointment-status': this.loadAppointmentStatus(months, clinicId); break;
+      case 'clinic-summary': this.loadClinicSummary(months, clinicId); break;
+      default: this.loading.set(false);
+    }
+  }
+
+  private setCols(cols: ColumnDef[]) { this.columns.set(cols); }
+  private done(data: Record<string, any>[]) { this.resultData.set(data); this.loading.set(false); }
+
+  private loadAppointmentTrends(months: number) {
+    this.setCols([
+      { key: 'label', label: this.translate.instant('ADMIN.REPORTS.COL_MONTH') },
+      { key: 'total', label: this.translate.instant('COMMON.TOTAL') },
+      { key: 'completed', label: this.translate.instant('ADMIN.REPORTS.COL_COMPLETED'), type: 'badge-success' },
+      { key: 'cancelled', label: this.translate.instant('ADMIN.REPORTS.COL_CANCELLED'), type: 'badge-danger' },
+      { key: 'noShow', label: this.translate.instant('ADMIN.REPORTS.COL_NO_SHOW'), type: 'badge-warning' },
+      { key: 'completionPct', label: this.translate.instant('ADMIN.REPORTS.COL_COMPLETION_PCT'), type: 'percent' },
+    ]);
+    this.data.getAppointmentTrends(months).subscribe({
+      next: (r) => this.done(r.map(t => ({ label: t.label, total: t.total, completed: t.completed, cancelled: t.cancelled, noShow: t.noShow, completionPct: t.total > 0 ? t.completed / t.total : 0 }))),
+      error: () => this.done([])
     });
-    this.data.getDoctorPerformance().subscribe({
-      next: dp => this.doctorPerf.set(dp)
+  }
+
+  private loadRevenue(months: number) {
+    this.setCols([
+      { key: 'label', label: this.translate.instant('ADMIN.REPORTS.COL_MONTH') },
+      { key: 'revenue', label: this.translate.instant('ADMIN.REPORTS.COL_REVENUE'), type: 'currency' },
+      { key: 'appointmentCount', label: this.translate.instant('ADMIN.REPORTS.COL_APPOINTMENTS') },
+      { key: 'avgPerAppt', label: this.translate.instant('ADMIN.REPORTS.COL_AVG_PER_VISIT'), type: 'currency' },
+    ]);
+    this.data.getMonthlyRevenue(months).subscribe({
+      next: (r) => this.done(r.map(rv => ({ label: rv.label, revenue: rv.revenue, appointmentCount: rv.appointmentCount, avgPerAppt: rv.appointmentCount > 0 ? rv.revenue / rv.appointmentCount : 0 }))),
+      error: () => this.done([])
     });
+  }
+
+  private loadDoctorPerformance(clinicId?: number) {
+    this.setCols([
+      { key: 'doctorName', label: this.translate.instant('ADMIN.REPORTS.COL_DOCTOR') },
+      { key: 'specialtyName', label: this.translate.instant('ADMIN.REPORTS.COL_SPECIALTY') },
+      { key: 'totalAppointments', label: this.translate.instant('COMMON.TOTAL') },
+      { key: 'completedAppointments', label: this.translate.instant('ADMIN.REPORTS.COL_COMPLETED'), type: 'badge-success' },
+      { key: 'cancelledAppointments', label: this.translate.instant('ADMIN.REPORTS.COL_CANCELLED'), type: 'badge-danger' },
+      { key: 'revenue', label: this.translate.instant('ADMIN.REPORTS.COL_REVENUE'), type: 'currency' },
+      { key: 'rating', label: this.translate.instant('COMMON.RATING'), type: 'rating' },
+      { key: 'completionRate', label: this.translate.instant('ADMIN.REPORTS.COL_COMPLETE_PCT'), type: 'percent' },
+    ]);
+    this.data.getDoctorPerformance(clinicId).subscribe({
+      next: (r) => this.done(r.map(d => ({ doctorName: d.doctorName, specialtyName: d.specialtyName, totalAppointments: d.totalAppointments, completedAppointments: d.completedAppointments, cancelledAppointments: d.cancelledAppointments, revenue: d.revenue, rating: d.rating, completionRate: d.completionRate }))),
+      error: () => this.done([])
+    });
+  }
+
+  private loadTopDoctors() {
+    this.setCols([
+      { key: 'rank', label: this.translate.instant('ADMIN.REPORTS.COL_RANK') },
+      { key: 'doctorName', label: this.translate.instant('ADMIN.REPORTS.COL_DOCTOR') },
+      { key: 'specialtyName', label: this.translate.instant('ADMIN.REPORTS.COL_SPECIALTY') },
+      { key: 'rating', label: this.translate.instant('COMMON.RATING'), type: 'rating' },
+      { key: 'completedAppointments', label: this.translate.instant('ADMIN.REPORTS.COL_COMPLETED'), type: 'badge-success' },
+      { key: 'totalReviews', label: this.translate.instant('ADMIN.REPORTS.COL_REVIEWS') },
+    ]);
+    this.data.getTopDoctors(20).subscribe({
+      next: (r) => this.done(r.map((d, i) => ({ rank: i + 1, doctorName: d.doctorName, specialtyName: d.specialtyName, rating: d.rating, completedAppointments: d.completedAppointments, totalReviews: d.totalReviews }))),
+      error: () => this.done([])
+    });
+  }
+
+  private loadSpecialtyStats() {
+    this.setCols([
+      { key: 'specialtyName', label: this.translate.instant('ADMIN.REPORTS.COL_SPECIALTY') },
+      { key: 'doctorCount', label: this.translate.instant('ADMIN.REPORTS.COL_DOCTORS') },
+      { key: 'appointmentCount', label: this.translate.instant('ADMIN.REPORTS.COL_APPOINTMENTS'), type: 'badge-info' },
+      { key: 'revenue', label: this.translate.instant('ADMIN.REPORTS.COL_REVENUE'), type: 'currency' },
+    ]);
+    this.data.getSpecialtyStats().subscribe({
+      next: (r) => this.done(r.map(s => ({ specialtyName: s.specialtyName, doctorCount: s.doctorCount, appointmentCount: s.appointmentCount, revenue: s.revenue }))),
+      error: () => this.done([])
+    });
+  }
+
+  private loadPatientTrends(months: number) {
+    this.setCols([
+      { key: 'label', label: this.translate.instant('ADMIN.REPORTS.COL_MONTH') },
+      { key: 'count', label: this.translate.instant('ADMIN.REPORTS.COL_NEW_PATIENTS'), type: 'badge-info' },
+    ]);
+    this.data.getPatientTrends(months).subscribe({
+      next: (r) => this.done(r.map(pt => ({ label: pt.label, count: pt.count }))),
+      error: () => this.done([])
+    });
+  }
+
+  private loadPeakHours() {
+    this.setCols([
+      { key: 'hour', label: this.translate.instant('ADMIN.HOUR') },
+      { key: 'count', label: this.translate.instant('ADMIN.REPORTS.COL_APPOINTMENTS'), type: 'badge-info' },
+    ]);
+    this.data.getPeakHours().subscribe({
+      next: (r) => this.done(r.map(ph => ({ hour: `${ph.hour}:00`, count: ph.count }))),
+      error: () => this.done([])
+    });
+  }
+
+  private loadDayOfWeek() {
+    this.setCols([
+      { key: 'dayName', label: this.translate.instant('ADMIN.DAY') },
+      { key: 'count', label: this.translate.instant('ADMIN.REPORTS.COL_APPOINTMENTS'), type: 'badge-info' },
+    ]);
+    this.data.getDayOfWeekStats().subscribe({
+      next: (r) => this.done(r.map(dw => ({ dayName: dw.dayName, count: dw.count }))),
+      error: () => this.done([])
+    });
+  }
+
+  private loadGenderDistribution() {
+    this.setCols([
+      { key: 'gender', label: this.translate.instant('ADMIN.GENDER') },
+      { key: 'count', label: this.translate.instant('ADMIN.PATIENTS') },
+      { key: 'pct', label: this.translate.instant('ADMIN.REPORTS.COL_PERCENTAGE'), type: 'percent' },
+    ]);
+    this.data.getGenderDistribution().subscribe({
+      next: (r) => {
+        const total = r.reduce((s, g) => s + g.count, 0);
+        this.done(r.map(g => ({ gender: g.gender, count: g.count, pct: total > 0 ? g.count / total : 0 })));
+      },
+      error: () => this.done([])
+    });
+  }
+
+  private loadAppointmentStatus(months: number, clinicId?: number) {
+    this.setCols([
+      { key: 'status', label: this.translate.instant('COMMON.STATUS') },
+      { key: 'count', label: this.translate.instant('ADMIN.COUNT') },
+      { key: 'pct', label: this.translate.instant('ADMIN.REPORTS.COL_PERCENTAGE'), type: 'percent' },
+    ]);
+    this.data.getAdminReport(months).subscribe({
+      next: (r) => {
+        const statuses = r.summary.appointmentsByStatus || [];
+        const total = statuses.reduce((s, st) => s + st.count, 0);
+        this.done(statuses.map(st => ({ status: st.status, count: st.count, pct: total > 0 ? st.count / total : 0 })));
+      },
+      error: () => this.done([])
+    });
+  }
+
+  private loadClinicSummary(months: number, clinicId?: number) {
+    if (clinicId && clinicId > 0) {
+      this.setCols([
+        { key: 'clinicName', label: this.translate.instant('ADMIN.CLINIC') },
+        { key: 'totalDoctors', label: this.translate.instant('ADMIN.REPORTS.COL_DOCTORS') },
+        { key: 'totalPatients', label: this.translate.instant('ADMIN.PATIENTS') },
+        { key: 'totalAppointments', label: this.translate.instant('ADMIN.REPORTS.COL_APPOINTMENTS') },
+        { key: 'appointmentsToday', label: this.translate.instant('ADMIN.REPORTS.COL_TODAY') },
+        { key: 'appointmentsThisWeek', label: this.translate.instant('ADMIN.REPORTS.COL_THIS_WEEK') },
+        { key: 'revenueThisMonth', label: this.translate.instant('ADMIN.REPORTS.COL_REVENUE_MONTH'), type: 'currency' },
+        { key: 'completionRate', label: this.translate.instant('ADMIN.REPORTS.COL_COMPLETE_PCT'), type: 'percent' },
+      ]);
+      this.data.getClinicReport(clinicId, months).subscribe({
+        next: (r) => {
+          const s = r.summary;
+          this.done([{ clinicName: s.clinicName, totalDoctors: s.totalDoctors, totalPatients: s.totalPatients, totalAppointments: s.totalAppointments, appointmentsToday: s.appointmentsToday, appointmentsThisWeek: s.appointmentsThisWeek, revenueThisMonth: s.revenueThisMonth, completionRate: s.completionRate }]);
+        },
+        error: () => this.done([])
+      });
+    } else {
+      this.setCols([{ key: 'metric', label: this.translate.instant('ADMIN.REPORTS.COL_METRIC') }, { key: 'value', label: this.translate.instant('ADMIN.REPORTS.COL_VALUE') }]);
+      this.data.getAdminReport(months).subscribe({
+        next: (r) => this.done([
+          { metric: this.translate.instant('ADMIN.REPORTS.METRIC_TOTAL_PATIENTS'), value: r.summary?.totalPatients },
+          { metric: this.translate.instant('ADMIN.REPORTS.METRIC_TOTAL_DOCTORS'), value: r.summary?.totalDoctors },
+          { metric: this.translate.instant('ADMIN.REPORTS.METRIC_TOTAL_CLINICS'), value: r.summary?.totalClinics },
+          { metric: this.translate.instant('ADMIN.REPORTS.METRIC_TOTAL_APPTS'), value: r.summary?.totalAppointments },
+          { metric: this.translate.instant('ADMIN.REPORTS.METRIC_APPTS_WEEK'), value: r.summary?.appointmentsThisWeek },
+          { metric: this.translate.instant('ADMIN.REPORTS.METRIC_REVENUE_MONTH'), value: `${r.summary?.estimatedRevenueThisMonth?.toLocaleString() || 0} ${this.translate.instant('COMMON.CURRENCY')}` },
+          { metric: this.translate.instant('ADMIN.REPORTS.METRIC_COMPLETION_RATE'), value: `${(r.summary?.completionRate || 0).toFixed(1)}%` },
+          { metric: this.translate.instant('ADMIN.REPORTS.METRIC_NO_SHOW_RATE'), value: `${(r.summary?.noShowRate || 0).toFixed(1)}%` },
+          { metric: this.translate.instant('ADMIN.REPORTS.METRIC_CANCELLATION_RATE'), value: `${(r.summary?.cancellationRate || 0).toFixed(1)}%` },
+          { metric: this.translate.instant('ADMIN.REPORTS.METRIC_NEW_PATIENTS_MONTH'), value: r.summary?.newPatientsThisMonth },
+          { metric: this.translate.instant('ADMIN.REPORTS.METRIC_AVG_FEE'), value: `${r.summary?.avgConsultationFee?.toLocaleString() || 0} ${this.translate.instant('COMMON.CURRENCY')}` },
+        ]),
+        error: () => this.done([])
+      });
+    }
+  }
+
+  windowPrint() {
+    window.print();
   }
 
   exportExcel() {
-    const r = this.report();
-    if (!r) return;
-    const sheets: SheetData[] = [];
-
-    sheets.push({
-      name: this.t('ADMIN.EXPORT_SHEET_SUMMARY'),
-      rows: [{
-        [this.t('ADMIN.TOTAL_PATIENTS')]: r.summary.totalPatients,
-        [this.t('ADMIN.TOTAL_DOCTORS')]: r.summary.totalDoctors,
-        [this.t('ADMIN.TOTAL_CLINICS')]: r.summary.totalClinics,
-        [this.t('ADMIN.TOTAL_APPOINTMENTS')]: r.summary.totalAppointments,
-        [this.t('ADMIN.APPOINTMENTS_THIS_WEEK')]: r.summary.appointmentsThisWeek,
-        [this.t('ADMIN.THIS_MONTH')]: r.summary.appointmentsThisMonth,
-        [this.t('ADMIN.REVENUE_MONTH')]: r.summary.estimatedRevenueThisMonth,
-        [this.t('ADMIN.REVENUE_LAST_MONTH')]: r.summary.estimatedRevenueLastMonth,
-        [this.t('ADMIN.REVENUE_GROWTH') + ' (%)']: r.summary.revenueGrowthPercent,
-        [this.t('ADMIN.NEW_PATIENTS_MONTH')]: r.summary.newPatientsThisMonth,
-        [this.t('ADMIN.AVG_FEE') + ' (' + this.t('COMMON.CURRENCY') + ')']: r.summary.avgConsultationFee,
-        [this.t('ADMIN.COMPLETION_RATE') + ' (%)']: r.summary.completionRate,
-        [this.t('ADMIN.NO_SHOW_RATE') + ' (%)']: r.summary.noShowRate,
-        [this.t('ADMIN.CANCELLATION_RATE') + ' (%)']: r.summary.cancellationRate
-      }]
+    const rows = this.resultData();
+    if (rows.length === 0) return;
+    const cols = this.columns();
+    const cleanRows = rows.map(row => {
+      const clean: Record<string, any> = {};
+      cols.forEach(col => {
+        let val = row[col.key];
+        if (col.type === 'currency') val = val != null ? Number(val) : 0;
+        if (col.type === 'percent') val = val != null ? Number(val) : 0;
+        if (col.type?.startsWith('badge')) val = String(val ?? '');
+        clean[col.label] = val;
+      });
+      return clean;
     });
-
-    if (r.appointmentTrends.length > 0) {
-      sheets.push({
-        name: this.t('ADMIN.APPOINTMENT_TRENDS'),
-        rows: r.appointmentTrends.map(t => ({
-          [this.t('COMMON.DATE')]: t.label,
-          [this.t('ADMIN.TOTAL')]: t.total,
-          [this.t('ADMIN.COMPLETION')]: t.completed,
-          [this.t('ADMIN.CANCELLED')]: t.cancelled,
-          [this.t('ADMIN.NO_SHOW')]: t.noShow
-        }))
-      });
-    }
-
-    if (r.revenueByMonth.length > 0) {
-      sheets.push({
-        name: this.t('ADMIN.MONTHLY_REVENUE'),
-        rows: r.revenueByMonth.map(rv => ({
-          [this.t('COMMON.DATE')]: rv.label,
-          [this.t('ADMIN.REVENUE') + ' (' + this.t('COMMON.CURRENCY') + ')']: rv.revenue,
-          [this.t('ADMIN.APPOINTMENTS_COUNT')]: rv.appointmentCount
-        }))
-      });
-    }
-
-    if (r.specialtyStats.length > 0) {
-      sheets.push({
-        name: this.t('ADMIN.SPECIALTY_PERFORMANCE'),
-        rows: r.specialtyStats.map(s => ({
-          [this.t('ADMIN.SPECIALTY')]: s.specialtyName,
-          [this.t('ADMIN.DOCTORS_COUNT')]: s.doctorCount,
-          [this.t('ADMIN.APPOINTMENTS_COUNT')]: s.appointmentCount,
-          [this.t('ADMIN.REVENUE') + ' (' + this.t('COMMON.CURRENCY') + ')']: s.revenue
-        }))
-      });
-    }
-
-    if (r.patientTrends.length > 0) {
-      sheets.push({
-        name: this.t('ADMIN.PATIENT_REGISTRATIONS'),
-        rows: r.patientTrends.map(pt => ({
-          [this.t('COMMON.DATE')]: pt.label,
-          [this.t('ADMIN.PATIENTS')]: pt.count
-        }))
-      });
-    }
-
-    if (r.peakHours.length > 0) {
-      sheets.push({
-        name: this.t('ADMIN.PEAK_HOURS'),
-        rows: r.peakHours.map(ph => ({
-          [this.t('ADMIN.HOUR')]: ph.hour + ':00',
-          [this.t('ADMIN.APPOINTMENTS_COUNT')]: ph.count
-        }))
-      });
-    }
-
-    if (r.dayOfWeekStats.length > 0) {
-      sheets.push({
-        name: this.t('ADMIN.DAY_OF_WEEK'),
-        rows: r.dayOfWeekStats.map(dw => ({
-          [this.t('ADMIN.DAY')]: dw.dayName,
-          [this.t('ADMIN.APPOINTMENTS_COUNT')]: dw.count
-        }))
-      });
-    }
-
-    if (r.genderDistribution.length > 0) {
-      sheets.push({
-        name: this.t('ADMIN.GENDER_DISTRIBUTION'),
-        rows: r.genderDistribution.map(g => ({
-          [this.t('ADMIN.GENDER')]: g.gender,
-          [this.t('ADMIN.COUNT')]: g.count
-        }))
-      });
-    }
-
-    if (r.topDoctors.length > 0) {
-      sheets.push({
-        name: this.t('ADMIN.TOP_DOCTORS'),
-        rows: r.topDoctors.map((d, i) => ({
-          '#': i + 1,
-          [this.t('ADMIN.DOCTOR')]: d.doctorName,
-          [this.t('ADMIN.SPECIALTY')]: d.specialtyName,
-          [this.t('ADMIN.RATING')]: d.rating,
-          [this.t('ADMIN.APPOINTMENTS_COUNT')]: d.completedAppointments,
-          [this.t('ADMIN.REVIEWS')]: d.totalReviews
-        }))
-      });
-    }
-
-    if (this.doctorPerf().length > 0) {
-      sheets.push({
-        name: this.t('ADMIN.DOCTOR_PERFORMANCE'),
-        rows: this.doctorPerf().map(d => ({
-          [this.t('ADMIN.DOCTOR')]: d.doctorName,
-          [this.t('ADMIN.SPECIALTY')]: d.specialtyName,
-          [this.t('ADMIN.TOTAL')]: d.totalAppointments,
-          [this.t('ADMIN.COMPLETION')]: d.completedAppointments,
-          [this.t('ADMIN.CANCELLED')]: d.cancelledAppointments,
-          [this.t('ADMIN.NO_SHOW')]: d.noShowAppointments || 0,
-          [this.t('ADMIN.REVENUE') + ' (' + this.t('COMMON.CURRENCY') + ')']: d.revenue,
-          [this.t('ADMIN.RATING')]: d.rating,
-          [this.t('ADMIN.REVIEWS')]: d.totalReviews,
-          [this.t('ADMIN.COMPLETION_RATE') + ' (%)']: d.completionRate
-        }))
-      });
-    }
-
     const date = new Date().toISOString().slice(0, 10);
-    this.excel.exportMultiSheet(`Shefaa_Reports_${date}`, sheets);
-  }
-
-  private t(key: string): string { return this.translate.instant(key); }
-
-  maxTrend(): number {
-    const r = this.report();
-    if (!r) return 1;
-    return Math.max(1, ...r.appointmentTrends.map(t => t.total));
-  }
-
-  maxRevenue(): number {
-    const r = this.report();
-    if (!r) return 1;
-    return Math.max(1, ...r.revenueByMonth.map(rv => rv.revenue));
-  }
-
-  maxSpecialtyRevenue(): number {
-    const r = this.report();
-    if (!r) return 1;
-    return Math.max(1, ...r.specialtyStats.map(s => s.revenue));
-  }
-
-  maxPatientTrend(): number {
-    const r = this.report();
-    if (!r) return 1;
-    return Math.max(1, ...r.patientTrends.map(pt => pt.count));
-  }
-
-  maxPeakHour(): number {
-    const r = this.report();
-    if (!r) return 1;
-    return Math.max(1, ...r.peakHours.map(ph => ph.count));
-  }
-
-  maxDayOfWeek(): number {
-    const r = this.report();
-    if (!r) return 1;
-    return Math.max(1, ...r.dayOfWeekStats.map(dw => dw.count));
-  }
-
-  maxDoctorCompleted(): number {
-    const r = this.report();
-    if (!r || r.topDoctors.length === 0) return 1;
-    return Math.max(1, ...r.topDoctors.map(d => d.completedAppointments));
-  }
-
-  genderPercent(count: number): number {
-    const r = this.report();
-    if (!r) return 0;
-    const total = r.genderDistribution.reduce((sum, g) => sum + g.count, 0);
-    return total > 0 ? (count / total * 100) : 0;
-  }
-
-  genderIcon(gender: string) {
-    const g = gender.toLowerCase();
-    if (g.includes('male') || g === 'ذكر') return { icon: 'male', bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', bar: 'bg-blue-500' };
-    if (g.includes('female') || g === 'أنثى') return { icon: 'female', bg: 'bg-pink-100 dark:bg-pink-900/30', text: 'text-pink-600 dark:text-pink-400', bar: 'bg-pink-500' };
-    return { icon: 'person', bg: 'bg-surface-100 dark:bg-surface-700', text: 'text-surface-500', bar: 'bg-surface-400' };
+    const reportName = this.translate.instant('ADMIN.REPORTS.' + (this.selectedReport()?.label || ''));
+    const fileSuffix = reportName.replace(/\s+/g, '_');
+    this.excel.exportSingleSheet(`Shefaa_${fileSuffix}_${date}`, reportName, cleanRows);
   }
 }

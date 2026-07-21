@@ -28,6 +28,7 @@ export interface UserDto {
   gender: number;
   userType: number;
   isActive: boolean;
+  createdAt: string;
   roles: string[];
   permissions: string[];  // derived from roles via AuthorizationCatalog
 }

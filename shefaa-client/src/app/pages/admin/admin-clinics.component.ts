@@ -95,17 +95,17 @@ import { ClinicDto, SpecialtyDto } from '../../core/models';
     </div>
 
     <!-- Create/Edit Modal -->
-    <div *ngIf="editing()" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" (click)="$event.target === $event.currentTarget && editing.set(false)">
+    <div *ngIf="editing" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" (click)="$event.target === $event.currentTarget && (editing = false)">
       <div class="card w-full max-w-2xl my-8 animate-in">
         <div class="flex items-center justify-between p-6 pb-0">
           <h2 class="text-xl font-semibold text-slate-900 dark:text-white">
-            {{ editingItem()?.id ? ('COMMON.EDIT' | translate) : ('COMMON.CREATE' | translate) }} {{ 'NAV.CLINICS' | translate }}
+            {{ editingItem?.id ? ('COMMON.EDIT' | translate) : ('COMMON.CREATE' | translate) }} {{ 'NAV.CLINICS' | translate }}
           </h2>
-          <button (click)="editing.set(false)" class="btn-ghost btn-sm rounded-full">
+          <button (click)="editing = false" class="btn-ghost btn-sm rounded-full">
             <mat-icon>close</mat-icon>
           </button>
         </div>
-        <form [formGroup]="form" (ngSubmit)="save()" class="p-6 pt-4">
+        <form [formGroup]="form" class="p-6 pt-4">
           <div class="grid sm:grid-cols-2 gap-4">
             <div class="sm:col-span-2">
               <div class="grid grid-cols-2 gap-3">
@@ -169,8 +169,8 @@ import { ClinicDto, SpecialtyDto } from '../../core/models';
             </div>
 
             <div class="sm:col-span-2 flex justify-end gap-3 pt-2 border-t border-slate-200 dark:border-slate-700">
-              <button type="button" (click)="editing.set(false)" class="btn-secondary">{{ 'COMMON.CANCEL' | translate }}</button>
-              <button type="submit" [disabled]="form.invalid || saving()" class="btn-primary">
+              <button type="button" (click)="editing = false" class="btn-secondary">{{ 'COMMON.CANCEL' | translate }}</button>
+              <button type="button" (click)="save()" [disabled]="saving()" class="btn-primary">
                 <mat-icon *ngIf="saving()" class="animate-spin">refresh</mat-icon>
                 {{ 'COMMON.SAVE' | translate }}
               </button>
@@ -191,10 +191,11 @@ export class AdminClinicsComponent implements OnInit {
   loading = signal(true);
   items = signal<ClinicDto[]>([]);
   specialties = signal<SpecialtyDto[]>([]);
-  editing = signal(false);
-  editingItem = signal<ClinicDto | null>(null);
+  editing = false;
+  editingItem: ClinicDto | null = null;
   saving = signal(false);
   isAr = signal(false);
+  isClinicAdmin = false;
 
   form = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(2)]],
@@ -210,6 +211,7 @@ export class AdminClinicsComponent implements OnInit {
   }, { updateOn: 'change' });
 
   ngOnInit() {
+    this.isClinicAdmin = this.auth.hasRole('ClinicAdmin');
     this.isAr.set(this.translate.currentLang === 'ar');
     this.updateValidators(this.isAr());
     this.translate.onLangChange.subscribe(event => {
@@ -225,10 +227,10 @@ export class AdminClinicsComponent implements OnInit {
     const nameArCtrl = this.form.controls['nameAr'];
     if (isArabic) {
       nameArCtrl.setValidators([Validators.required, Validators.minLength(2)]);
-      nameCtrl.setValidators([Validators.minLength(2)]);
+      nameCtrl.clearValidators();
     } else {
       nameCtrl.setValidators([Validators.required, Validators.minLength(2)]);
-      nameArCtrl.setValidators([]);
+      nameArCtrl.clearValidators();
     }
     nameCtrl.updateValueAndValidity({ emitEvent: false });
     nameArCtrl.updateValueAndValidity({ emitEvent: false });
@@ -259,27 +261,27 @@ export class AdminClinicsComponent implements OnInit {
   }
 
   openCreate() {
-    this.editingItem.set(null);
+    this.editingItem = null;
     this.form.reset({ name: '', nameAr: '', address: '', city: '', governorate: '', phoneNumber: '', email: '', website: '', isActive: true, specialtyId: null });
     this.updateValidators(this.isAr());
-    this.editing.set(true);
+    this.editing = true;
   }
 
   openEdit(c: ClinicDto) {
-    this.editingItem.set(c);
+    this.editingItem = c;
     this.form.reset({
       name: c.name, nameAr: c.nameAr || '', address: c.address || '', city: c.city || '', governorate: c.governorate || '',
       phoneNumber: c.phoneNumber || '', email: c.email || '', website: c.website || '', isActive: c.isActive,
       specialtyId: c.specialtyId ?? null
     });
     this.updateValidators(this.isAr());
-    this.editing.set(true);
+    this.editing = true;
   }
 
   save() {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.saving.set(true);
-    const item = this.editingItem();
+    const item = this.editingItem;
     const payload = { ...this.form.getRawValue() };
     if (!payload.name && payload.nameAr) payload.name = payload.nameAr;
     if (!payload.nameAr && payload.name) payload.nameAr = payload.name;
@@ -288,7 +290,7 @@ export class AdminClinicsComponent implements OnInit {
       ? this.data.updateClinic(item.id, payload)
       : this.data.createClinic(payload);
     obs.subscribe({
-      next: () => { this.saving.set(false); this.snack.open(this.translate.instant('COMMON.SAVED'), this.translate.instant('COMMON.OK'), { duration: 2000 }); this.editing.set(false); this.load(); },
+      next: () => { this.saving.set(false); this.snack.open(this.translate.instant('COMMON.SAVED'), this.translate.instant('COMMON.OK'), { duration: 2000 }); this.editing = false; this.load(); },
       error: err => { this.saving.set(false); this.snack.open(err.error?.message || err.error?.title || this.translate.instant('COMMON.SAVE_FAILED'), this.translate.instant('COMMON.OK'), { duration: 3000 }); }
     });
   }
@@ -304,7 +306,7 @@ export class AdminClinicsComponent implements OnInit {
   }
 
   remove(c: ClinicDto) {
-    if (!confirm(this.translate.instant('ADMIN.CLINIC_STAFF.DELETE_CONFIRM', { name: c.name }))) return;
+    if (!confirm(this.translate.instant('ADMIN.DELETE_CONFIRM', { name: c.name }))) return;
     this.data.deleteClinic(c.id).subscribe(() => { this.snack.open(this.translate.instant('COMMON.DELETED'), this.translate.instant('COMMON.OK'), { duration: 2000 }); this.load(); });
   }
 }

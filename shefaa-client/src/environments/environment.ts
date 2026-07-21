@@ -1,4 +1,4 @@
 export const environment = {
-  production: false,
-  apiBaseUrl: 'http://localhost:5026/api'
+  production: true,
+  apiBaseUrl: 'https://shefaa.runasp.net/api'
 };

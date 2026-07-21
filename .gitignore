@@ -40,6 +40,10 @@ dist/
 # Kilo
 .kilo/
 
+# SQLite WAL / SHM
+*.db-shm
+*.db-wal
+
 # Temp files
 temp_*
 tmp_*

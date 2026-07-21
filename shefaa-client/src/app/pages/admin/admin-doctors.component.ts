@@ -292,7 +292,7 @@ export class AdminDoctorsComponent implements OnInit {
   }
 
   remove(d: DoctorDto) {
-    if (!confirm(this.translate.instant('ADMIN.CLINIC_STAFF.DELETE_CONFIRM', { name: d.fullName }))) return;
+    if (!confirm(this.translate.instant('ADMIN.DELETE_CONFIRM', { name: d.fullName }))) return;
     this.data.deleteDoctor(d.id).subscribe(() => { this.snack.open(this.translate.instant('COMMON.DELETED'), this.translate.instant('COMMON.OK'), { duration: 2000 }); this.load(); });
   }
 

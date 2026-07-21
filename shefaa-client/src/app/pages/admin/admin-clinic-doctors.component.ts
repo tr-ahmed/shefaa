@@ -35,7 +35,8 @@ import { ClinicDto, ClinicDoctorDto, DoctorDto } from '../../core/models';
             </div>
             <label class="label">{{ 'ADMIN.CLINIC_DOCTORS.CLINIC_LABEL' | translate }}</label>
             <select class="input" [ngModel]="clinicId()" (ngModelChange)="onClinicChange($event)" name="clinicId">
-              <option [ngValue]="null">{{ '-- Select --' }}</option>
+                  <option [ngValue]="null">{{ 'ADMIN.SELECT_OPTION' | translate }}</option>
+
               <option *ngFor="let c of clinics()" [ngValue]="c.id">{{ c.name }}{{ c.city ? ' - ' + c.city : '' }}</option>
             </select>
           </div>
@@ -49,7 +50,9 @@ import { ClinicDto, ClinicDoctorDto, DoctorDto } from '../../core/models';
               <div>
                 <label class="label">{{ 'ADMIN.CLINIC_DOCTORS.SELECT_DOCTOR' | translate }} <span class="text-red-500">*</span></label>
                 <select class="input" [(ngModel)]="selectedDoctorId" name="doctorId">
-                  <option [ngValue]="null">{{ '-- Select --' }}</option>
+              <option [ngValue]="null">{{ 'ADMIN.SELECT_OPTION' | translate }}</option>
+
+
                   <option *ngFor="let d of availableDoctors()" [ngValue]="d.id">{{ d.fullName }} ({{ d.specialtyName }})</option>
                 </select>
               </div>

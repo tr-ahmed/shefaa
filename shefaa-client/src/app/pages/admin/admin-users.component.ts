@@ -31,11 +31,11 @@ import { UserDto } from '../../core/models';
         </div>
         <select [(ngModel)]="filterRole" class="input md:w-48">
           <option value="">{{ 'COMMON.ALL' | translate }}</option>
-          <option value="SystemAdmin">SystemAdmin</option>
-          <option value="ClinicAdmin">ClinicAdmin</option>
-          <option value="ClinicStaff">ClinicStaff</option>
-          <option value="Doctor">Doctor</option>
-          <option value="Patient">Patient</option>
+          <option value="SystemAdmin">{{ 'ADMIN.ROLE_SYSTEMADMIN' | translate }}</option>
+          <option value="ClinicAdmin">{{ 'ADMIN.ROLE_CLINICADMIN' | translate }}</option>
+          <option value="ClinicStaff">{{ 'ADMIN.ROLE_CLINICSTAFF' | translate }}</option>
+          <option value="Doctor">{{ 'ADMIN.ROLE_DOCTOR' | translate }}</option>
+          <option value="Patient">{{ 'ADMIN.ROLE_PATIENT' | translate }}</option>
         </select>
         <button (click)="load()" class="btn-primary">
           <mat-icon class="!text-[18px]">search</mat-icon> {{ 'COMMON.SEARCH' | translate }}
@@ -99,7 +99,7 @@ import { UserDto } from '../../core/models';
               <td class="px-5 py-4 text-surface-600 dark:text-surface-300">{{ u.email }}</td>
               <td class="px-5 py-4 text-surface-500 dark:text-surface-400">{{ u.phoneNumber || '—' }}</td>
               <td class="px-5 py-4">
-                <span class="badge" [ngClass]="roleBadge(u.roles[0])">{{ u.roles[0] || '—' }}</span>
+                <span class="badge" [ngClass]="roleBadge(u.roles[0])">{{ ('ADMIN.ROLE_' + (u.roles[0] || '').toUpperCase()) | translate }}</span>
               </td>
               <td class="px-5 py-4 text-center">
                 <span *ngIf="u.isActive" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
@@ -109,7 +109,7 @@ import { UserDto } from '../../core/models';
                   <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> {{ 'COMMON.INACTIVE' | translate }}
                 </span>
               </td>
-              <td class="px-5 py-4 text-surface-500 dark:text-surface-400 text-xs">{{ formatDate(u.id) }}</td>
+              <td class="px-5 py-4 text-surface-500 dark:text-surface-400 text-xs">{{ u.createdAt | date:'shortDate' }}</td>
               <td class="px-5 py-4">
                 <div class="flex items-center justify-end gap-1">
                   <button (click)="toggleActive(u)" class="!rounded-lg p-1.5" [matTooltip]="u.isActive ? ('ADMIN.DEACTIVATE' | translate) : ('ADMIN.ACTIVATE' | translate)"
@@ -164,7 +164,7 @@ import { UserDto } from '../../core/models';
                   [ngClass]="selectedUser()?.roles?.[0] === r
                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300'
                     : 'border-surface-200 dark:border-surface-700 hover:border-primary-300 dark:hover:border-primary-700 text-surface-700 dark:text-surface-300'">
-            {{ r }}
+            {{ ('ADMIN.ROLE_' + r.toUpperCase()) | translate }}
           </button>
         </div>
         <button (click)="showRoleModal.set(false)" class="btn-secondary mt-4 w-full">{{ 'COMMON.CANCEL' | translate }}</button>
@@ -300,5 +300,5 @@ export class AdminUsersComponent implements OnInit {
     }
   }
 
-  formatDate(id: string) { return ''; }
+
 }
